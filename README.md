@@ -22,4 +22,11 @@ aktualisiert die Seite danach automatisch (dauert etwa eine Minute).
 
 | Animation | Jgst. | Lernbereich |
 |---|---|---|
-| [Der Überholvorgang](animationen/ueberholvorgang/) | 10 | Ph10 LB 3: Bewegungen und ihre Modellierung |
+| [Überholen bei konstanter Geschwindigkeit](animationen/ueberholvorgang/?modus=einfach) (Einstieg) | 10 | Ph10 LB 3: Bewegungen und ihre Modellierung |
+| [Der Überholvorgang](animationen/ueberholvorgang/) (Vertiefung) | 10 | Ph10 LB 3: Bewegungen und ihre Modellierung |
+
+## Funktionen für den Unterricht
+
+- **Link teilen:** öffnet die Animation mit genau den eingestellten Werten (die Werte stehen hinter dem `#` in der Adresse) – z. B. für Aufgaben in Moodle oder Teams.
+- **Vorhersage-Modus:** Ergebnisse sind verdeckt, bis die Schüler auf „Aufdecken“ tippen.
+- **iPad:** große Regler mit −/+-Tasten; über Teilen → „Zum Home-Bildschirm“ starten die Animationen wie eine App im Vollbild.

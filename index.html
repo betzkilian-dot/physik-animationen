@@ -2,9 +2,16 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Physik-Animationen</title>
 <meta name="description" content="Interaktive Physik-Animationen für den Unterricht.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Physik">
+<meta name="theme-color" content="#f3f4f6">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{
   --bg:#f3f4f6; --panel:#ffffff; --ink:#16191d; --muted:#5d6670; --line:#dde1e6; --soft:#f6f7f9;
@@ -16,8 +23,16 @@
          --accent:#7ea2ff; --accent-ink:#0d1220; --tag:#232c42; --tag-ink:#b8c9ff; color-scheme: dark; }
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);-webkit-tap-highlight-color:transparent}
+a,button,input{touch-action:manipulation}
+.tip{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 18px;font-size:14.5px}
+.tip span{flex:1}
+.tip button{font:inherit;border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;min-width:44px;min-height:44px}
+.tag.lvl{background:transparent;border:1px solid var(--line);color:var(--muted)}
 .wrap{max-width:1200px;margin:0 auto;padding:0 20px}
 header{padding:40px 0 18px}
 h1{font-size:34px;letter-spacing:-.02em;margin:0 0 6px}
@@ -25,7 +40,7 @@ header p{margin:0;color:var(--muted);max-width:62ch}
 .tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:18px 0 22px}
 .tools input{flex:1;min-width:220px;font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:999px;cursor:pointer}
+.chip{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 16px;min-height:44px;border-radius:999px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding-bottom:40px}
 .card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .15s, box-shadow .15s}
@@ -50,6 +65,10 @@ footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
     <h1>Physik-Animationen</h1>
     <p>Interaktive Simulationen für den Physikunterricht. Werte einstellen, beobachten, Diagramme deuten – direkt im Browser, auch auf Tablet und Handy.</p>
   </header>
+  <div class="tip" id="tip" hidden>
+    <span>📲 <b>Tipp fürs iPad:</b> In Safari auf <b>Teilen</b> (□↑) und dann <b>„Zum Home-Bildschirm“</b> tippen – die Animationen starten dann wie eine App im Vollbild.</span>
+    <button id="tipClose" aria-label="Hinweis schließen">×</button>
+  </div>
   <div class="tools">
     <input id="q" type="search" placeholder="Suchen, z. B. „Diagramm“ oder „Überholen“" aria-label="Animationen durchsuchen">
     <div class="chips" id="chips" role="group" aria-label="Jahrgangsstufe"></div>
@@ -77,7 +96,7 @@ function draw(){
     <a class="card" href="${esc(a.pfad)}">
       <div class="thumb">${a.vorschau ? `<img src="${esc(a.vorschau)}" alt="" loading="lazy">` : ""}</div>
       <div class="body">
-        <div class="meta"><span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span></div>
+        <div class="meta"><span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span>${a.niveau ? `<span class="tag lvl">${esc(a.niveau)}</span>` : ""}</div>
         <h2>${esc(a.titel)}</h2>
         <p>${esc(a.beschreibung)}</p>
         ${a.lernbereich ? `<div class="lb">${esc(a.lernbereich)}</div>` : ""}
@@ -88,6 +107,18 @@ function draw(){
 document.getElementById("q").addEventListener("input", draw);
 document.getElementById("foot").textContent = list.length + (list.length===1 ? " Animation" : " Animationen");
 drawChips(); draw();
+
+// Hinweis „Zum Home-Bildschirm“ nur auf iPad/iPhone in Safari, nicht in der App-Ansicht
+(() => {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  let closed = false; try{ closed = localStorage.getItem("tipClosed") === "1"; }catch(e){}
+  if(ios && !standalone && !closed) document.getElementById("tip").hidden = false;
+  document.getElementById("tipClose").onclick = () => {
+    document.getElementById("tip").hidden = true;
+    try{ localStorage.setItem("tipClosed","1"); }catch(e){}
+  };
+})();
 </script>
 </body>
 </html>
