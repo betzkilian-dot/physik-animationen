@@ -57,6 +57,9 @@ header p{margin:0;color:var(--muted);max-width:62ch}
 .lb{font-size:13px;color:var(--muted)}
 .open{margin-top:auto;font-weight:600;color:var(--accent);font-size:14.5px}
 .empty{color:var(--muted);padding:30px 0}
+.sec{font-size:20px;margin:6px 0 12px;letter-spacing:-.01em}
+.sec small{font-size:14px;font-weight:400;color:var(--muted);margin-left:8px}
+.tag.tool{background:var(--accent);color:var(--accent-ink)}
 footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
 </style>
 </head>
@@ -71,15 +74,21 @@ footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
     <button id="tipClose" aria-label="Hinweis schließen">×</button>
   </div>
   <div class="tools">
-    <input id="q" type="search" placeholder="Suchen, z. B. „Diagramm“ oder „Überholen“" aria-label="Animationen durchsuchen">
+    <input id="q" type="search" placeholder="Suchen, z. B. „Diagramm“, „Überholen“ oder „Video“" aria-label="Animationen und Werkzeuge durchsuchen">
     <div class="chips" id="chips" role="group" aria-label="Jahrgangsstufe"></div>
   </div>
+  <section id="toolSec" hidden>
+    <h2 class="sec">Werkzeuge <small>für eigene Messungen, in allen Jahrgangsstufen</small></h2>
+    <div class="grid" id="tools"></div>
+  </section>
+  <h2 class="sec" id="animHead" hidden>Animationen</h2>
   <main class="grid" id="grid"></main>
   <footer id="foot"></footer>
 </div>
 <script src="animationen.js"></script>
 <script>
-const list = (window.ANIMATIONEN || []).slice();
+const all = (window.ANIMATIONEN || []).slice();
+const list = all.filter(a => a.art !== "werkzeug"), tools = all.filter(a => a.art === "werkzeug");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let jg = "alle";
 const stufen = [...new Set(list.map(a => a.jahrgangsstufe))].sort((a,b)=>parseInt(a)-parseInt(b));
@@ -89,24 +98,29 @@ function drawChips(){
     `<button class="chip" data-s="${esc(s)}" aria-pressed="${s===jg}">${s==="alle" ? "Alle" : "Jgst. "+esc(s)}</button>`).join("");
   chips.querySelectorAll("button").forEach(b => b.onclick = () => { jg = b.dataset.s; drawChips(); draw(); });
 }
-function draw(){
-  const q = document.getElementById("q").value.trim().toLowerCase();
-  const hits = list.filter(a => (jg==="alle" || a.jahrgangsstufe===jg) &&
-    (!q || [a.titel,a.beschreibung,a.themenbereich,a.lernbereich,...(a.stichworte||[])].join(" ").toLowerCase().includes(q)));
-  document.getElementById("grid").innerHTML = hits.map(a => `
+const match = (a, q) => !q || [a.titel,a.beschreibung,a.themenbereich,a.lernbereich,...(a.stichworte||[])].join(" ").toLowerCase().includes(q);
+const card = (a, tool) => `
     <a class="card" href="${esc(a.pfad)}">
       <div class="thumb">${a.schaubild ? `<img class="sb" src="${esc(a.schaubild)}" alt="" loading="lazy">` : a.vorschau ? `<img src="${esc(a.vorschau)}" alt="" loading="lazy">` : ""}</div>
       <div class="body">
-        <div class="meta"><span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span>${a.niveau ? `<span class="tag lvl">${esc(a.niveau)}</span>` : ""}</div>
+        <div class="meta">${tool ? `<span class="tag tool">Werkzeug</span>` : ""}<span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span>${a.niveau && !tool ? `<span class="tag lvl">${esc(a.niveau)}</span>` : ""}</div>
         <h2>${esc(a.titel)}</h2>
         <p>${esc(a.beschreibung)}</p>
         ${a.lernbereich ? `<div class="lb">${esc(a.lernbereich)}</div>` : ""}
-        <span class="open">Animation öffnen →</span>
+        <span class="open">${tool ? "Werkzeug öffnen →" : "Animation öffnen →"}</span>
       </div>
-    </a>`).join("") || `<div class="empty">Keine passende Animation gefunden.</div>`;
+    </a>`;
+function draw(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const th = tools.filter(a => match(a, q));
+  document.getElementById("toolSec").hidden = !th.length;
+  document.getElementById("animHead").hidden = !th.length;
+  document.getElementById("tools").innerHTML = th.map(a => card(a, true)).join("");
+  const hits = list.filter(a => (jg==="alle" || a.jahrgangsstufe===jg) && match(a, q));
+  document.getElementById("grid").innerHTML = hits.map(a => card(a, false)).join("") || `<div class="empty">Keine passende Animation gefunden.</div>`;
 }
 document.getElementById("q").addEventListener("input", draw);
-document.getElementById("foot").textContent = list.length + (list.length===1 ? " Animation" : " Animationen");
+document.getElementById("foot").textContent = list.length + (list.length===1 ? " Animation" : " Animationen") + (tools.length ? " · " + tools.length + (tools.length===1 ? " Werkzeug" : " Werkzeuge") : "");
 drawChips(); draw();
 
 // Hinweis „Zum Home-Bildschirm“ nur auf iPad/iPhone in Safari, nicht in der App-Ansicht

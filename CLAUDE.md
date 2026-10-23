@@ -26,6 +26,12 @@ Die Seite läuft über GitHub Pages aus dem Branch `main` (Wurzelverzeichnis). J
 7. Commit auf `main` und pushen. Eine Kopie der geänderten Dateien zusätzlich in den Ordner
    „Physik-Animationen“ auf dem Rechner der Lehrkraft legen, wenn der Rechner verbunden ist.
 
+## Werkzeuge
+Allgemeine Werkzeuge (z. B. `animationen/stroboskop/`, Videoanalyse) bekommen in `animationen.js` das Feld `art: "werkzeug"`
+und erscheinen auf der Übersichtsseite in einem eigenen Bereich über den Animationen (nicht nach Jahrgangsstufe gefiltert).
+Testvideo für die Stroboskop-Analyse: per Python/OpenCV einen Wurf mit bekannten Werten erzeugen und als VP9-WebM kodieren
+(Playwright-Chromium spielt kein H.264), dann g ≈ 9,81 m/s² und v_x prüfen.
+
 ## Fachliche Konventionen
 - Deutsche Fachbegriffe des LehrplanPLUS: „Zeit-Ort-Diagramm“, „Zeit-Geschwindigkeit-Diagramm“, „Bewegungsfunktion“.
 - Ort mit `x`, Achsenbeschriftung „t in s“, „x in m“; Dezimalkomma.

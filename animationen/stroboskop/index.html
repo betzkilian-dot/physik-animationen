@@ -1,0 +1,1770 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stroboskop-Analyse – Physik-Animationen</title>
+<meta name="description" content="Werkzeug: Bewegungen aus einem Video als Stroboskopbild darstellen, markieren und in Zeit-Ort- und Zeit-Geschwindigkeit-Diagrammen auswerten.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stroboskop">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f3f4f6">
+<link rel="apple-touch-icon" href="../../icons/icon-180.png">
+<link rel="icon" type="image/png" href="../../icons/icon-192.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<style>
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#16191d; --muted:#5d6670; --line:#dde1e6; --soft:#f6f7f9;
+  --accent:#1f4fd1; --accent-ink:#ffffff; --tag:#e8eefc;
+  --start:#15803d; --end:#c81e1e; --warn:#b45309;
+  --grid:#eceef1; --axis:#8f98a3; --track:#d5dae0;
+  --pt:#2563eb; --sug:#15803d; --scale:#d9590b; --axc:#7c3aed; --sel:#c81e1e; --fit:#15803d; --pred:#7c3aed;
+  --stagebg:#e6e8eb;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121417; --panel:#1b1e23; --ink:#e7eaee; --muted:#9aa3ad; --line:#2c3138; --soft:#22262c;
+    --accent:#7ea2ff; --accent-ink:#0d1220; --tag:#232c42;
+    --start:#34c46b; --end:#f05a5a; --warn:#f0a43a;
+    --grid:#262a30; --axis:#66707b; --track:#3a4048;
+    --pt:#5b8cff; --sug:#34c46b; --scale:#ff8a3d; --axc:#a78bfa; --sel:#f05a5a; --fit:#34c46b; --pred:#c4b5fd;
+    --stagebg:#0d0f12;
+    color-scheme: dark;
+  }
+}
+html.forcelight{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#16191d; --muted:#5d6670; --line:#dde1e6; --soft:#f6f7f9;
+  --accent:#1f4fd1; --accent-ink:#ffffff; --start:#15803d; --warn:#b45309; --grid:#eceef1; --axis:#8f98a3;
+  --pt:#2563eb; --sug:#15803d; --scale:#d9590b; --axc:#7c3aed; --sel:#c81e1e; --fit:#15803d; --pred:#7c3aed;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-tap-highlight-color:transparent}
+a{color:var(--accent)}
+button,select,input,label,a{touch-action:manipulation}
+canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;display:block;width:100%}
+
+header.top{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:12px 20px 4px;max-width:1500px;margin:0 auto}
+header.top a.back{font-size:15px;text-decoration:none;padding:8px 0}
+header.top .titles{display:flex;align-items:baseline;gap:4px 14px;flex-wrap:wrap;flex:1;min-width:0}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap}
+
+.layout{display:grid;grid-template-columns:330px minmax(0,1fr);grid-template-areas:"settings view" "settings charts";gap:14px 16px;padding:8px 20px 30px;max-width:1500px;margin:0 auto;align-items:start}
+#settings{grid-area:settings;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border-radius:12px}
+#view{grid-area:view}
+#charts{grid-area:charts}
+@media (min-width:900px) and (min-height:600px){
+  #view{position:sticky;top:0;padding-top:8px;margin-top:-8px;background:var(--bg);z-index:5}
+  #view .card{box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  body[data-step="auswerten"] #view{position:static}
+}
+@media (max-width:1100px){ .layout{grid-template-columns:300px minmax(0,1fr);padding:6px 12px 24px;gap:12px} header.top{padding:10px 12px 2px} }
+@media (max-width:899px){
+  .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"view" "settings" "charts"}
+  #settings{position:static;max-height:none}
+}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card + .card{margin-top:12px}
+.card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h3{font-size:14px;margin:14px 0 6px}
+.card p{margin:6px 0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* Schritte */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.steps button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:10px;padding:5px 4px;min-height:50px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;text-align:center}
+.steps button b{font-size:15px}
+.steps button[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.steps button:disabled{opacity:.42;cursor:not-allowed}
+.steps button.done:not([aria-current]) b::after{content:" ✓";color:var(--start)}
+@media (max-width:899px){ .steps{grid-template-columns:repeat(6,1fr)} .steps button{font-size:12px} }
+@media (max-width:560px){ .steps{grid-template-columns:repeat(3,1fr)} }
+
+/* Bedienelemente */
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft)}
+.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:8px 6px;min-height:42px;font:inherit;font-size:14px;cursor:pointer;line-height:1.2}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.row{margin:10px 0}
+.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+select{width:100%;font:inherit;font-size:16px;padding:8px 10px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink)}
+.field{margin:8px 0 10px}
+.field .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.field .head label{font-size:13.5px}
+.num{display:flex;align-items:center;gap:5px}
+.num input{width:74px;text-align:right;font:inherit;font-size:16px;padding:4px 7px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink)}
+.num em{font-style:normal;font-size:12.5px;color:var(--muted);min-width:30px}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:4px}
+.step{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 22px/1 system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none}
+.step:active{background:var(--accent);color:var(--accent-ink)}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;width:100%;height:34px;background:transparent;margin:0;--p:50%;--bgr:linear-gradient(to right,var(--accent) var(--p),var(--track) var(--p))}
+input[type=range]:focus{outline:none}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--bgr)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-9px;border-radius:50%;background:var(--accent);border:3px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--bgr)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.check{display:flex;gap:10px;align-items:flex-start;margin:6px 0;font-size:14px;cursor:pointer;padding:4px 0}
+.check input{margin-top:1px;accent-color:var(--accent);width:20px;height:20px;flex:none}
+.btn{font:inherit;font-size:15px;font-weight:600;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:10px;padding:8px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{font-size:14px;min-height:38px;padding:6px 12px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible, .seg button:focus-visible, .step:focus-visible, .steps button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btnrow .btn{flex:1 1 auto}
+.note{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;margin:10px 0}
+.note.warn{border-left:4px solid var(--warn)}
+.note.ok{border-left:4px solid var(--start)}
+table.info{width:100%;font-size:13.5px;border-collapse:collapse;margin:8px 0}
+table.info td{padding:4px 0;border-top:1px solid var(--line);vertical-align:top}
+table.info td:last-child{text-align:right;font-variant-numeric:tabular-nums;padding-left:8px;word-break:break-all}
+details summary{cursor:pointer;font-weight:600;font-size:14px;padding:6px 0}
+details ul{margin:4px 0 8px;padding-left:20px;font-size:13.5px}
+details li{margin:3px 0}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:8px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%}
+.status{font-size:14px;font-variant-numeric:tabular-nums}
+.status b{font-weight:650}
+
+/* Bühne */
+.viewhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.viewhead b{font-size:15px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.stagewrap{position:relative;border-radius:8px;overflow:hidden;background:var(--stagebg)}
+#stage{height:360px;touch-action:none}
+body[data-step="video"] #stage, body[data-step="bereich"] #stage, body[data-step="strobo"] #stage, body[data-step="auswerten"] #stage{touch-action:pan-y}
+#loupe{position:absolute;width:150px;height:150px;border-radius:50%;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.45);border:3px solid #fff;display:none;z-index:3}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:16px;z-index:4}
+#busy{background:rgba(10,12,16,.62);color:#fff;font-weight:600}
+.bar{width:min(320px,80%);height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}
+.bar i{display:block;height:100%;background:#fff;width:0}
+#empty{background:var(--soft)}
+#empty .big{font-size:40px;line-height:1}
+#empty p{margin:0;max-width:44ch;color:var(--muted)}
+.player{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+#scrub{flex:1;min-width:150px}
+.flabel{font-variant-numeric:tabular-nums;font-weight:600;min-width:150px;text-align:right;font-size:14.5px}
+
+/* Diagramme */
+.chgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.chgrid .card + .card{margin-top:0}
+.chart{height:300px;touch-action:pan-y;cursor:crosshair}
+.chart.grab{touch-action:none}
+.chhead{margin-bottom:8px}
+.fitrow{margin-top:8px}
+.fitres{font-size:14px;margin-top:8px;line-height:1.5}
+.fitres sub{font-size:.72em}
+.fitres .q{color:var(--muted);font-size:13px}
+.charthint{font-size:12.5px;color:var(--muted);margin-top:4px}
+#predBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+#predBar p{flex:1;min-width:220px;margin:0}
+.tablewrap{overflow-x:auto}
+table.data{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+table.data th,table.data td{padding:5px 7px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+table.data th:first-child,table.data td:first-child{text-align:left}
+table.data thead th{border-top:0;color:var(--muted);font-weight:500;font-size:12.5px}
+table.data tbody tr{cursor:pointer}
+table.data tr.sel td{background:var(--tag);font-weight:600}
+footer{max-width:1500px;margin:0 auto;padding:0 20px 30px;color:var(--muted);font-size:13px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(560px,calc(100vw - 32px));transition:.25s;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast input{width:100%;margin-top:6px;font-size:14px;padding:6px;border-radius:6px;border:0}
+.toast button{font:inherit;font-weight:600;margin-left:10px;border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;padding:4px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+.modal .card{max-width:460px;width:100%}
+.modal input[type=text]{width:100%;font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--soft);color:var(--ink);min-height:44px}
+#vid{position:fixed;left:-4px;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
+
+@media (pointer:coarse){
+  input[type=range]{height:40px}
+  input[type=range]::-webkit-slider-thumb{width:30px;height:30px;margin-top:-12px}
+  .step{width:44px;height:44px}
+  .field .head label{font-size:14.5px}
+  .check{font-size:15px}
+  .mouse{display:none}
+}
+@media (pointer:fine){ .touch{display:none} }
+
+#printout{display:none}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;color:#000;padding:0;font-size:11pt}
+  body > *:not(#printout){display:none!important}
+  #printout{display:block}
+  #printout h1{font-size:18pt;margin:0 0 4pt}
+  #printout h2{font-size:13pt;margin:14pt 0 5pt;border-bottom:1px solid #999;padding-bottom:2pt;break-after:avoid}
+  #printout table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4pt 0}
+  #printout tr{break-inside:avoid}
+  #printout th,#printout td{border:1px solid #bbb;padding:2pt 5pt;text-align:right}
+  #printout th:first-child,#printout td:first-child{text-align:left}
+  #printout img{max-width:100%;break-inside:avoid;border:1px solid #ccc}
+  #printout img.strobe{max-height:120mm;width:auto;display:block}
+  #printout .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8pt}
+  #printout .pgrid > div{break-inside:avoid}
+  #printout .meta{color:#444;font-size:10pt}
+  #printout p{margin:3pt 0}
+}
+</style>
+</head>
+<body data-step="video">
+<header class="top">
+  <a class="back" href="../../index.html">← Alle Animationen</a>
+  <div class="titles">
+    <h1>Stroboskop-Analyse</h1>
+    <span class="sub">Bewegungen aus einem Video auswerten · Werkzeug</span>
+  </div>
+  <div class="hbtns">
+    <button class="btn small" id="shareBtn" title="Link mit den Diagramm-Einstellungen teilen (ohne Video)">🔗 Link teilen</button>
+    <button class="btn small" id="pdfBtn" title="Stroboskopbild, Messwerte und Diagramme als PDF sichern" disabled>📄 Ergebnisse als PDF</button>
+    <button class="btn small" id="fsBtn" title="Vollbild">⛶ Vollbild</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ============ Einstellungen ============ -->
+  <aside id="settings">
+    <div class="card"><div class="steps" id="steps" role="group" aria-label="Arbeitsschritte"></div></div>
+
+    <!-- 1 Video -->
+    <div class="card" data-step="video">
+      <h2>1 Video aufnehmen oder öffnen</h2>
+      <div class="btnrow">
+        <button class="btn primary" id="camBtn">🎥 Video aufnehmen</button>
+        <button class="btn" id="libBtn">📁 Video öffnen</button>
+      </div>
+      <p class="small muted">Das Video bleibt auf diesem Gerät – es wird nichts hochgeladen.</p>
+      <div id="vidInfo" hidden>
+        <table class="info">
+          <tr><td>Datei</td><td id="iName"></td></tr>
+          <tr><td>Dauer</td><td id="iDur"></td></tr>
+          <tr><td>Auflösung</td><td id="iRes"></td></tr>
+        </table>
+        <div class="field">
+          <div class="head"><label for="fpsN">Bildrate des Videos</label><span class="num"><input id="fpsN" type="text" inputmode="decimal" autocomplete="off"><em>Bilder/s</em></span></div>
+          <div class="small muted" id="fpsNote"></div>
+        </div>
+        <div class="row">
+          <span class="lbl">Zeitlupe: Das Video läuft langsamer als die Wirklichkeit um den Faktor</span>
+          <div class="seg" id="slowSeg">
+            <button data-slow="1">keine</button><button data-slow="4">4</button><button data-slow="8">8</button>
+          </div>
+          <div class="field" style="margin-top:6px">
+            <div class="head"><label for="slowN">eigener Faktor</label><span class="num"><input id="slowN" type="text" inputmode="decimal" autocomplete="off"><em></em></span></div>
+          </div>
+          <p class="small muted">Beispiel: Zeitlupe mit 120 Bildern/s, abgespielt mit 30 Bildern/s → Faktor 4; mit 240 Bildern/s → Faktor 8. Bei iPad-Zeitlupen nur den langsamen Mittelteil auswerten.</p>
+        </div>
+        <button class="btn block primary" data-go="bereich">Weiter: Zeitbereich wählen →</button>
+        <div class="btnrow"><button class="btn small" id="resetBtn">↺ Auswertung dieses Videos zurücksetzen</button></div>
+      </div>
+      <details>
+        <summary>Tipps für eine gute Aufnahme</summary>
+        <ul>
+          <li>iPad auf ein <b>Stativ</b> stellen oder fest auflegen – die Kamera darf sich nicht bewegen.</li>
+          <li>Kamera <b>senkrecht</b> zur Ebene der Bewegung ausrichten, nicht schräg.</li>
+          <li>Einen <b>Maßstab</b> (z. B. Meterstab) in die Ebene der Bewegung legen und mitfilmen.</li>
+          <li>Ruhiger, <b>einfarbiger Hintergrund</b> und viel Licht; der Körper soll sich farblich abheben.</li>
+          <li>Für schnelle Bewegungen die <b>Zeitlupe</b> (Slo-Mo) verwenden.</li>
+          <li>Nicht zoomen; den Körper möglichst groß, aber ganz im Bild aufnehmen.</li>
+        </ul>
+      </details>
+    </div>
+
+    <!-- 2 Zeitbereich -->
+    <div class="card" data-step="bereich" hidden>
+      <h2>2 Zeitbereich und Bildabstand</h2>
+      <p class="small">Suche mit dem Regler unter dem Video den <b>Anfang</b> und das <b>Ende</b> der Bewegung und lege sie fest.</p>
+      <div class="btnrow">
+        <button class="btn" id="setStart">⇤ Start hier</button>
+        <button class="btn" id="setEnd">Ende hier ⇥</button>
+      </div>
+      <table class="info">
+        <tr><td>Start</td><td id="iStart"></td></tr>
+        <tr><td>Ende</td><td id="iEnd"></td></tr>
+      </table>
+      <div id="fEvery"></div>
+      <table class="info">
+        <tr><td>Zeit zwischen zwei Bildern Δt</td><td id="iDt"></td></tr>
+        <tr><td>Anzahl der Bilder</td><td id="iCount"></td></tr>
+      </table>
+      <div class="note warn" id="tooMany" hidden></div>
+      <button class="btn block primary" id="extractBtn">Bilder übernehmen</button>
+      <p class="small muted">Für ein gut lesbares Stroboskopbild reichen 10 bis 30 Bilder. Der Abstand kann im nächsten Schritt für das Bild noch vergrößert werden.</p>
+    </div>
+
+    <!-- 3 Stroboskopbild -->
+    <div class="card" data-step="strobo" hidden>
+      <h2>3 Stroboskopbild</h2>
+      <div class="row">
+        <span class="lbl">Bilder übereinanderlegen</span>
+        <div class="seg" id="modeSeg">
+          <button data-mode="diff">Bewegtes</button><button data-mode="hell">Aufhellen</button><button data-mode="dunkel">Abdunkeln</button>
+        </div>
+        <p class="small muted" id="modeNote"></p>
+      </div>
+      <div id="fThr"></div>
+      <div id="fNth"></div>
+      <label class="check"><input type="checkbox" id="stPts"> Markierte Punkte zeigen</label>
+      <label class="check"><input type="checkbox" id="stNum"> Bildnummern zeigen</label>
+      <label class="check"><input type="checkbox" id="stAxes"> Koordinatensystem und Maßstab zeigen</label>
+      <div class="btnrow"><button class="btn" id="pngBtn">🖼 Bild speichern (PNG)</button></div>
+      <button class="btn block primary" data-go="massstab">Weiter: Maßstab festlegen →</button>
+    </div>
+
+    <!-- 4 Maßstab -->
+    <div class="card" data-step="massstab" hidden>
+      <h2>4 Maßstab und Koordinatensystem</h2>
+      <h3 style="margin-top:0"><span style="color:var(--scale)">━</span> Maßstab</h3>
+      <p class="small">Ziehe die beiden <b>orangen Punkte</b> an die Enden einer Strecke mit bekannter Länge, z. B. eines Meterstabs. Sie muss in der Ebene der Bewegung liegen.</p>
+      <div id="fLen"></div>
+      <p class="small muted" id="iScale"></p>
+      <h3><span style="color:var(--axc)">━</span> Koordinatensystem</h3>
+      <p class="small">Ziehe den <b>Ursprung</b> (gefüllter Punkt) und die <b>Spitze der x-Achse</b> (Ring) an die gewünschte Stelle. Die x-Achse zeigt in Bewegungsrichtung, bei einer schiefen Ebene entlang der Bahn.</p>
+      <label class="check"><input type="checkbox" id="yUp"> y-Achse zeigt nach oben</label>
+      <div class="btnrow">
+        <button class="btn small" id="axLevel">x-Achse waagrecht</button>
+        <button class="btn small" id="axScale">x-Achse wie Maßstab</button>
+        <button class="btn small" id="axFirst">Ursprung = 1. Punkt</button>
+      </div>
+      <button class="btn block primary" data-go="markieren">Weiter: Bewegung markieren →</button>
+    </div>
+
+    <!-- 5 Markieren -->
+    <div class="card" data-step="markieren" hidden>
+      <h2>5 Bewegung markieren</h2>
+      <p class="small">Tippe in jedem Bild auf die <b>Mitte des Körpers</b>. <span class="touch">Halte den Finger und schiebe ihn – die Lupe zeigt, was darunter liegt.</span> Danach erscheint das nächste Bild mit einem <b>Vorschlag</b> (gestrichelter Kreis). Passt er, tippe auf „Vorschlag übernehmen“, sonst tippe selbst auf den Körper.</p>
+      <p class="status" id="mkStatus"></p>
+      <button class="btn block primary" id="acceptBtn">✓ Vorschlag übernehmen <span class="mouse small">(Eingabetaste)</span></button>
+      <div class="btnrow">
+        <button class="btn" id="mkPrev">‹ Bild</button>
+        <button class="btn" id="mkNext">Bild ›</button>
+        <button class="btn" id="mkDel">✕ Punkt löschen</button>
+      </div>
+      <div id="fRad"></div>
+      <div class="row">
+        <span class="lbl">Vergrößerung</span>
+        <div class="seg" id="zoomSeg"><button data-z="1">1×</button><button data-z="2">2×</button><button data-z="4">4×</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="showSug"> Vorschlag anzeigen</label>
+      <label class="check"><input type="checkbox" id="showTrail"> Bisherige Punkte anzeigen</label>
+      <div class="btnrow"><button class="btn small" id="mkClear">Alle Punkte löschen</button></div>
+      <button class="btn block primary" data-go="auswerten">Weiter: Auswerten →</button>
+    </div>
+
+    <!-- 6 Auswerten -->
+    <div class="card" data-step="auswerten" hidden>
+      <h2>6 Auswerten</h2>
+      <div class="note warn" id="noScale" hidden>Der Maßstab ist noch nicht eingestellt – die Werte in Metern stimmen dann nicht. <a href="#" data-go="massstab">Maßstab festlegen</a></div>
+      <p class="status" id="evStatus"></p>
+      <div class="row">
+        <span class="lbl">Geschwindigkeit aus den Nachbarpunkten</span>
+        <div class="seg" id="dqSeg"><button data-dq="1">± 1 Bild</button><button data-dq="2">± 2 Bilder</button></div>
+        <p class="small muted" id="dqNote"></p>
+      </div>
+      <label class="check"><input type="checkbox" id="optPredict"> Vorhersage-Modus: erst Diagramme skizzieren, dann Messwerte aufdecken</label>
+      <h3>Sichern</h3>
+      <div class="btnrow">
+        <button class="btn small" id="csvBtn">📊 Messwerte (CSV)</button>
+        <button class="btn small" id="png2Btn">🖼 Stroboskopbild (PNG)</button>
+      </div>
+      <button class="btn block" id="pdf2Btn">📄 Ergebnisse als PDF</button>
+      <details>
+        <summary>So rechnet die App</summary>
+        <ul>
+          <li>Zeit: t<sub>i</sub> = i · Δt mit Δt = Bildabstand : Bildrate : Zeitlupenfaktor.</li>
+          <li>Ort: Abstand vom Ursprung entlang der Achsen, umgerechnet mit dem Maßstab.</li>
+          <li>Geschwindigkeit: v<sub>x</sub>(t<sub>i</sub>) = (x<sub>i+1</sub> − x<sub>i−1</sub>) : (t<sub>i+1</sub> − t<sub>i−1</sub>), bei „± 2 Bilder“ mit i ± 2. Am Anfang und Ende fehlt deshalb ein Wert.</li>
+          <li>Beschleunigung ebenso aus den Geschwindigkeiten. Sie schwankt stark, weil sich kleine Ungenauigkeiten beim Markieren verstärken.</li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+
+  <!-- ============ Ansicht ============ -->
+  <section id="view">
+    <div class="card">
+      <div class="viewhead"><b id="viewTitle">Video</b><span class="badge" id="badge" hidden></span></div>
+      <div class="stagewrap" id="stagewrap">
+        <canvas id="stage" aria-label="Videobild"></canvas>
+        <canvas id="loupe" aria-hidden="true"></canvas>
+        <div class="overlay" id="empty">
+          <div class="big">🎬</div>
+          <p><b style="color:var(--ink)">Noch kein Video.</b> Nimm eine Bewegung mit der Kamera auf oder öffne ein Video aus der Mediathek.</p>
+          <div class="btnrow"><button class="btn primary" id="camBtn2">🎥 Video aufnehmen</button><button class="btn" id="libBtn2">📁 Video öffnen</button></div>
+          <p class="small mouse">oder eine Videodatei hierher ziehen</p>
+        </div>
+        <div class="overlay" id="busy" hidden><span id="busyText">Bitte warten …</span><div class="bar"><i id="busyBar"></i></div></div>
+      </div>
+      <div class="player" id="player" hidden>
+        <button class="btn small" id="playBtn" aria-label="Abspielen">▶</button>
+        <button class="step" id="prevBtn" aria-label="Ein Bild zurück">‹</button>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Bild wählen">
+        <button class="step" id="nextBtn" aria-label="Ein Bild weiter">›</button>
+        <span class="flabel" id="flabel"></span>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <!-- ============ Diagramme ============ -->
+  <section id="charts" hidden>
+    <div class="card" id="predBar" hidden></div>
+    <div class="chgrid">
+      <div class="card">
+        <div class="chhead"><select id="q0" aria-label="Diagramm 1"></select></div>
+        <canvas class="chart" id="ch0"></canvas>
+        <div class="fitrow"><div class="seg" data-fitseg="0"><button data-fit="none">ohne Kurve</button><button data-fit="gerade">Gerade</button><button data-fit="parabel">Parabel</button></div></div>
+        <div class="fitres" id="fr0"></div>
+      </div>
+      <div class="card">
+        <div class="chhead"><select id="q1" aria-label="Diagramm 2"></select></div>
+        <canvas class="chart" id="ch1"></canvas>
+        <div class="fitrow"><div class="seg" data-fitseg="1"><button data-fit="none">ohne Kurve</button><button data-fit="gerade">Gerade</button><button data-fit="parabel">Parabel</button></div></div>
+        <div class="fitres" id="fr1"></div>
+      </div>
+    </div>
+    <p class="charthint" id="chartHint"></p>
+    <div class="card" style="margin-top:12px">
+      <h2>Messwerte</h2>
+      <p class="small muted" id="tblHidden" hidden>Die Messwerte erscheinen, wenn du die Ergebnisse aufdeckst.</p>
+      <div class="tablewrap" id="tblWrap"><table class="data" id="tbl"></table></div>
+    </div>
+  </section>
+</div>
+<footer>Physik-Animationen · Werkzeug für alle Jahrgangsstufen: Bewegungen aus Videos auswerten (Zeit-Ort- und Zeit-Geschwindigkeit-Diagramm, Bahnkurve).</footer>
+
+<video id="vid" playsinline muted preload="auto"></video>
+<input type="file" id="fileCam" accept="video/*" capture="environment" hidden>
+<input type="file" id="fileLib" accept="video/*" hidden>
+<div class="toast" id="toast" role="status"></div>
+<div class="modal" id="pdfModal" hidden>
+  <div class="card">
+    <h2>Ergebnisse als PDF sichern</h2>
+    <p class="small muted" style="margin-top:0">Es wird eine Druckansicht mit Stroboskopbild, Messwerten und Diagrammen erzeugt. Auf dem iPad: im Druckdialog mit zwei Fingern auf die Vorschau aufziehen oder „Als PDF sichern“ wählen.</p>
+    <label class="lbl" for="pdfName">Name (erscheint auf dem Blatt)</label>
+    <input type="text" id="pdfName" autocomplete="name" placeholder="Vor- und Nachname">
+    <div class="btnrow" style="justify-content:flex-end">
+      <button class="btn" id="pdfCancel">Abbrechen</button>
+      <button class="btn primary" id="pdfGo">Druckansicht öffnen</button>
+    </div>
+  </div>
+</div>
+<div id="printout"></div>
+
+<script>
+"use strict";
+/* ================================================================
+   Zustand
+   ================================================================ */
+const MAXF = 60;              // höchstens so viele Bilder werden übernommen
+const S = {
+  step: "video",
+  fps: 30, fpsAuto: false, slow: 1,
+  n0: 0, n1: 0, every: 1, scrub: 0,
+  scale: null, scaleSet: false,     // {a:{x,y}, b:{x,y}, len}
+  axes: null,                       // {o:{x,y}, ang, len, yUp}
+  rad: 14,                          // Größe des Körpers (Radius in Videopixeln)
+  pts: [], cur: 0, zoom: 1, showSug: true, showTrail: true, focus: null, sug: null,
+  st: {mode: "diff", thr: 28, nth: 1, pts: true, num: true, axes: false}, seenStrobo: false,
+  dq: 1,
+  ch: [{q: "x", fit: "none", h: null}, {q: "vx", fit: "none", h: null}],
+  predict: false, revealed: false, pred: [[], []]
+};
+let V = null;      // Video: {name,size,vw,vh,dur,N}
+let F = null;      // übernommene Bilder: {sc,fw,fh,n,n0,every,img[],bg,diff[],gray[]}
+
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const clamp = (x,a,b) => Math.min(Math.max(x,a),b);
+const vid = $("#vid"), stage = $("#stage"), loupe = $("#loupe");
+const scratch = document.createElement("canvas"); let scratchKey = -1;
+const compCv = document.createElement("canvas"); let compDirty = true;
+
+function fmt(x, d=1){
+  if(x == null || !isFinite(x)) return "–";
+  if(Math.abs(x) < 0.5*Math.pow(10,-d)) x = 0;
+  return x.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function fs(x, sig=3){
+  if(x == null || !isFinite(x)) return "–";
+  if(x === 0) return "0";
+  const d = clamp(sig - 1 - Math.floor(Math.log10(Math.abs(x))), 0, 6);
+  return fmt(x, d);
+}
+const parseNum = s => parseFloat(String(s).replace(/\s/g,"").replace(",", "."));
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nextTick = () => new Promise(r => setTimeout(r, 0));
+const coarse = () => matchMedia("(pointer:coarse)").matches;
+
+let toastTimer;
+function toast(html, ms=3500){
+  const t = $("#toast"); t.innerHTML = html; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), ms);
+}
+function busy(on, text, frac){
+  $("#busy").hidden = !on;
+  if(text != null) $("#busyText").textContent = text;
+  $("#busyBar").style.width = ((frac || 0)*100) + "%";
+}
+
+/* ================================================================
+   Zeit, Koordinaten, Messwerte
+   ================================================================ */
+const dtFrame = () => (F ? F.every : S.every) / S.fps / S.slow;   // Zeit zwischen zwei übernommenen Bildern
+const frameTime = i => i * dtFrame();
+const nMarked = () => S.pts.filter(Boolean).length;
+const mpp = () => S.scale.len / Math.max(1e-9, Math.hypot(S.scale.b.x - S.scale.a.x, S.scale.b.y - S.scale.a.y));
+function axesVecs(){
+  const A = S.axes, c = Math.cos(A.ang), s = Math.sin(A.ang);
+  return {ux:{x:c, y:s}, uy: A.yUp ? {x:s, y:-c} : {x:-s, y:c}};
+}
+function phys(p){
+  const {ux, uy} = axesVecs(), k = mpp(), dx = p.x - S.axes.o.x, dy = p.y - S.axes.o.y;
+  return {x:(dx*ux.x + dy*ux.y)*k, y:(dx*uy.x + dy*uy.y)*k};
+}
+let serCache = null;
+function series(){
+  if(serCache) return serCache;
+  const P = [];
+  S.pts.forEach((p,i) => { if(p){ const q = phys(p); P.push({i, t:frameTime(i), x:q.x, y:q.y}); } });
+  const h = S.dq;
+  P.forEach((p,k) => { const a = P[k-h], b = P[k+h];
+    if(a && b){ p.vx = (b.x-a.x)/(b.t-a.t); p.vy = (b.y-a.y)/(b.t-a.t); p.v = Math.hypot(p.vx, p.vy); } });
+  P.forEach((p,k) => { const a = P[k-h], b = P[k+h];
+    if(a && b && a.vx != null && b.vx != null){ p.ax = (b.vx-a.vx)/(b.t-a.t); p.ay = (b.vy-a.vy)/(b.t-a.t); } });
+  return serCache = P;
+}
+function dirty(){ serCache = null; }
+
+const QS = {
+  x:   {opt:"x(t) – Zeit-Ort-Diagramm",                  sym:"x",   h:"x",               u:"m",    get:p=>p.x},
+  y:   {opt:"y(t) – Zeit-Ort-Diagramm (y-Richtung)",     sym:"y",   h:"y",               u:"m",    get:p=>p.y},
+  vx:  {opt:"vx(t) – Geschwindigkeit in x-Richtung",     sym:"v_x", h:"v<sub>x</sub>",   u:"m/s",  get:p=>p.vx},
+  vy:  {opt:"vy(t) – Geschwindigkeit in y-Richtung",     sym:"v_y", h:"v<sub>y</sub>",   u:"m/s",  get:p=>p.vy},
+  v:   {opt:"v(t) – Betrag der Geschwindigkeit",         sym:"v",   h:"v",               u:"m/s",  get:p=>p.v},
+  ax:  {opt:"ax(t) – Beschleunigung in x-Richtung",      sym:"a_x", h:"a<sub>x</sub>",   u:"m/s²", get:p=>p.ax},
+  ay:  {opt:"ay(t) – Beschleunigung in y-Richtung",      sym:"a_y", h:"a<sub>y</sub>",   u:"m/s²", get:p=>p.ay},
+  bahn:{opt:"y(x) – Bahnkurve",                          sym:"y",   h:"y",               u:"m",    get:p=>p.y, bahn:true}
+};
+
+/* ================================================================
+   Speichern: Link (#-Anker) und Gerät (localStorage)
+   ================================================================ */
+function stateToHash(){
+  const p = new URLSearchParams();
+  p.set("d1", S.ch[0].q); p.set("d2", S.ch[1].q);
+  if(S.ch[0].fit !== "none") p.set("f1", S.ch[0].fit);
+  if(S.ch[1].fit !== "none") p.set("f2", S.ch[1].fit);
+  if(S.dq !== 1) p.set("dq", S.dq);
+  if(S.every !== 1) p.set("k", S.every);
+  if(S.slow !== 1) p.set("zl", S.slow);
+  if(S.predict) p.set("vorhersage", "1");
+  return p.toString();
+}
+function saveHash(){ try{ history.replaceState(null, "", "#" + stateToHash()); }catch(e){} }
+let hashGiven = false;
+function loadHash(){
+  if(location.hash.length < 2) return;
+  const p = new URLSearchParams(location.hash.slice(1));
+  hashGiven = true;
+  if(QS[p.get("d1")]) S.ch[0].q = p.get("d1");
+  if(QS[p.get("d2")]) S.ch[1].q = p.get("d2");
+  for(const [k,i] of [["f1",0],["f2",1]]) if(["gerade","parabel"].includes(p.get(k))) S.ch[i].fit = p.get(k);
+  if(p.get("dq") === "2") S.dq = 2;
+  const k = parseInt(p.get("k")); if(k >= 1 && k <= 30) S.every = k;
+  const zl = parseNum(p.get("zl")); if(zl >= 1 && zl <= 100) S.slow = zl;
+  if(p.get("vorhersage") === "1") S.predict = true;
+}
+async function shareLink(){
+  const url = location.href.split("#")[0] + "#" + stateToHash();
+  if(navigator.share && coarse()){
+    try{ await navigator.share({title: document.title, url}); return; }
+    catch(e){ if(e && e.name === "AbortError") return; }
+  }
+  try{ await navigator.clipboard.writeText(url); toast("<b>Link kopiert.</b> Er öffnet das Werkzeug mit diesen Diagramm-Einstellungen; das Video wählt jeder selbst."); }
+  catch(e){ toast(`Diesen Link kopieren:<input readonly value="${esc(url)}" onfocus="this.select()">`, 9000); }
+}
+const vkey = () => V ? "stroboskop:" + V.name + ":" + V.size : null;
+let saveT;
+function saveLocal(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    if(!V) return;
+    const o = {fps:S.fps, fpsAuto:S.fpsAuto, slow:S.slow, n0:S.n0, n1:S.n1, every:S.every, scale:S.scale, scaleSet:S.scaleSet,
+      axes:S.axes, rad:S.rad, st:S.st, dq:S.dq, ch:S.ch.map(c => ({q:c.q, fit:c.fit, h:c.h})),
+      frames: F ? {n0:F.n0, every:F.every, n:F.n, pts:S.pts} : null};
+    try{ localStorage.setItem(vkey(), JSON.stringify(o)); }catch(e){}
+  }, 300);
+}
+
+/* ================================================================
+   Video laden
+   ================================================================ */
+const once = (el, ev, ms) => new Promise((res, rej) => {
+  const f = () => { el.removeEventListener(ev, f); clearTimeout(t); res(); };
+  const t = setTimeout(() => { el.removeEventListener(ev, f); rej(new Error("timeout")); }, ms);
+  el.addEventListener(ev, f);
+});
+async function detectFps(){
+  // Bildrate aus den Zeitstempeln der angezeigten Bilder bestimmen (langsam abspielen, damit kein Bild übersprungen wird)
+  if(!vid.requestVideoFrameCallback) return null;
+  return new Promise(res => {
+    const times = []; let done = false;
+    const fin = () => {
+      if(done) return; done = true; vid.pause(); vid.playbackRate = 1;
+      const d = [];
+      for(let i=1;i<times.length;i++){ const x = times[i]-times[i-1]; if(x > 1e-4) d.push(x); }
+      if(d.length < 4) return res(null);
+      d.sort((a,b) => a-b);
+      // Zeitstempel sind oft auf Millisekunden gerundet (17, 16, 17 ms …): Mittelwert der kürzesten Abstände
+      const dmin = d[Math.floor(d.length*0.2)], near1 = d.filter(x => x < 1.5*dmin);
+      let f = near1.length/near1.reduce((s,x) => s + x, 0);
+      const common = [24,25,30,48,50,60,90,100,120,240];
+      const near = common.find(c => Math.abs(f-c)/c < 0.04);
+      res(near || Math.round(f));
+    };
+    const cb = (now, md) => { times.push(md.mediaTime); if(times.length < 18 && !done) vid.requestVideoFrameCallback(cb); else fin(); };
+    vid.requestVideoFrameCallback(cb);
+    vid.playbackRate = 0.25;
+    vid.play().catch(fin);
+    setTimeout(fin, 2500);
+  });
+}
+function defaultsForVideo(){
+  const {vw, vh} = V;
+  S.n0 = 0; S.n1 = V.N - 1; S.scrub = 0;
+  S.scale = {a:{x:vw*0.3, y:vh*0.5}, b:{x:vw*0.7, y:vh*0.5}, len:1};
+  S.scaleSet = false;
+  S.axes = {o:{x:vw*0.12, y:vh*0.85}, ang:0, len:Math.min(vw,vh)*0.18, yUp:true};
+  S.rad = Math.round(Math.min(vw, vh)*0.025);
+  S.pts = []; S.cur = 0; S.sug = null; S.focus = null;
+}
+async function loadVideo(file){
+  if(!file) return;
+  if(file.type && !file.type.startsWith("video/")){ toast("Bitte eine <b>Videodatei</b> wählen."); return; }
+  stopPlay();
+  busy(true, "Video wird geöffnet …", 0);
+  if(vid.src) URL.revokeObjectURL(vid.src);
+  V = null; F = null; compDirty = true; scratchKey = -1; dirty();
+  vid.muted = true; vid.src = URL.createObjectURL(file); vid.load();
+  try{
+    await once(vid, "loadedmetadata", 20000);
+    if(vid.readyState < 2){ vid.play().catch(()=>{}); await once(vid, "loadeddata", 15000); vid.pause(); }
+  }catch(e){
+    busy(false); go("video");
+    toast("<b>Das Video lässt sich in diesem Browser nicht öffnen.</b> Vielleicht wird das Format (z. B. HEVC) nicht unterstützt. In der Kamera-Einstellung „Formate → Maximale Kompatibilität“ hilft das meist.", 9000);
+    return;
+  }
+  if(!vid.videoWidth || !isFinite(vid.duration)){ busy(false); toast("Das Video enthält kein lesbares Bild."); return; }
+  V = {name:file.name || "Video", size:file.size, vw:vid.videoWidth, vh:vid.videoHeight, dur:vid.duration};
+  busy(true, "Bildrate wird bestimmt …", 0.5);
+  const f = await detectFps();
+  S.fps = f || 30; S.fpsAuto = !!f;
+  V.N = Math.max(2, Math.floor(V.dur*S.fps + 1e-6));
+  defaultsForVideo();
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(vkey()) || "null"); }catch(e){}
+  busy(false);
+  layoutStage();
+  if(saved){
+    Object.assign(S, {fps:saved.fps, fpsAuto:saved.fpsAuto, slow:saved.slow, n0:saved.n0, n1:saved.n1, every:saved.every,
+      scale:saved.scale, scaleSet:saved.scaleSet, axes:saved.axes, rad:saved.rad, st:Object.assign(S.st, saved.st), dq:saved.dq});
+    if(!hashGiven && saved.ch) S.ch = saved.ch.map(c => ({q:c.q, fit:c.fit, h:c.h}));
+    V.N = Math.max(2, Math.floor(V.dur*S.fps + 1e-6));
+    S.n1 = Math.min(S.n1, V.N-1); S.scrub = S.n0;
+    if(saved.frames){
+      S.n0 = saved.frames.n0; S.every = saved.frames.every;
+      await extract(saved.frames.pts);
+      if(F){
+        go(nMarked() >= 2 ? "auswerten" : "markieren");
+        toast(`Frühere Auswertung dieses Videos wiederhergestellt.<button id="tReset">Neu beginnen</button>`, 7000);
+        const b = $("#tReset"); if(b) b.onclick = () => { $("#toast").classList.remove("show"); resetVideo(); };
+        return;
+      }
+    }
+  }
+  go("video");
+  await showVideoFrame(S.scrub);
+  toast(S.fpsAuto ? `Video geöffnet. Bildrate erkannt: <b>${fmt(S.fps,0)} Bilder/s</b> – bitte prüfen.` : "Video geöffnet. Die Bildrate konnte nicht erkannt werden – bitte eintragen.", 5000);
+}
+function resetVideo(){
+  if(!V) return;
+  try{ localStorage.removeItem(vkey()); }catch(e){}
+  F = null; compDirty = true; scratchKey = -1; dirty();
+  defaultsForVideo(); S.seenStrobo = false;
+  go("bereich");
+  toast("Auswertung zurückgesetzt.");
+}
+
+/* Videobild suchen */
+function seekTime(t){
+  return new Promise(res => {
+    if(Math.abs(vid.currentTime - t) < 1e-6 && vid.readyState >= 2){ res(); return; }
+    let ok = false;
+    const finish = () => { if(ok) return; ok = true; res(); };
+    const onSeeked = () => {
+      vid.removeEventListener("seeked", onSeeked);
+      if(vid.requestVideoFrameCallback){ vid.requestVideoFrameCallback(() => finish()); setTimeout(finish, 150); }
+      else requestAnimationFrame(() => requestAnimationFrame(finish));
+    };
+    vid.addEventListener("seeked", onSeeked);
+    setTimeout(() => { vid.removeEventListener("seeked", onSeeked); finish(); }, 4000);
+    vid.currentTime = t;
+  });
+}
+const frameT = n => clamp((n + 0.5)/S.fps, 0, Math.max(0, V.dur - 0.25/S.fps));
+let seeking = false, pendingSeek = null;
+async function showVideoFrame(n){
+  pendingSeek = n;
+  if(seeking) return;
+  seeking = true;
+  while(pendingSeek != null){
+    const k = pendingSeek; pendingSeek = null;
+    await seekTime(frameT(k));
+    drawStage();
+  }
+  seeking = false;
+}
+
+/* ================================================================
+   Bilder übernehmen, Hintergrund, Stroboskopbild
+   ================================================================ */
+const countFrames = () => Math.floor((S.n1 - S.n0)/S.every) + 1;
+async function extract(restorePts){
+  const n = countFrames();
+  if(n < 2){ toast("Wähle einen längeren Zeitbereich (mindestens 2 Bilder)."); return; }
+  if(n > MAXF){ toast(`Höchstens ${MAXF} Bilder – bitte den Bildabstand vergrößern.`); return; }
+  if(!restorePts && F && nMarked() && !confirm("Die Bilder werden neu übernommen. Die gesetzten Punkte gehen dabei verloren. Fortfahren?")) return;
+  stopPlay();
+  pendingSeek = null;
+  while(seeking) await new Promise(r => setTimeout(r, 30));
+  const maxPx = Math.min(960*720, 3e7/n);
+  const sc = Math.min(1, Math.sqrt(maxPx/(V.vw*V.vh)));
+  const fw = Math.max(2, Math.round(V.vw*sc)), fh = Math.max(2, Math.round(V.vh*sc));
+  const cv = document.createElement("canvas"); cv.width = fw; cv.height = fh;
+  const ctx = cv.getContext("2d", {willReadFrequently:true});
+  const img = [];
+  for(let i=0;i<n;i++){
+    busy(true, `Bilder werden übernommen … ${i+1} von ${n}`, i/n);
+    await seekTime(frameT(S.n0 + i*S.every));
+    ctx.drawImage(vid, 0, 0, fw, fh);
+    img.push(ctx.getImageData(0, 0, fw, fh));
+  }
+  F = {sc: fw/V.vw, fw, fh, n, n0:S.n0, every:S.every, img, bg:null, diff:[], gray:[]};
+  busy(true, "Hintergrund wird berechnet …", 0);
+  await computeBg();
+  compDirty = true; scratchKey = -1;
+  S.pts = (restorePts && restorePts.length === n) ? restorePts : new Array(n).fill(null);
+  S.cur = 0; S.sug = null; dirty();
+  busy(false);
+  saveLocal();
+  if(!restorePts){ go("strobo"); toast(`${n} Bilder übernommen (Δt = ${fs(dtFrame())} s).`); }
+}
+async function computeBg(){
+  // Hintergrund = Median (Mittelwert der Reihenfolge) mehrerer Bilder: der bewegte Körper verschwindet
+  const n = F.n, K = Math.min(n, 15);
+  const idx = Array.from({length:K}, (_,k) => Math.round(k*(n-1)/Math.max(1,K-1)));
+  const srcs = idx.map(i => F.img[i].data);
+  const out = new ImageData(F.fw, F.fh), o = out.data, N = o.length, tmp = new Uint8Array(K), mid = K >> 1;
+  let t = performance.now();
+  for(let p=0;p<N;p++){
+    if((p & 3) === 3){ o[p] = 255; continue; }
+    for(let k=0;k<K;k++){
+      const v = srcs[k][p]; let j = k - 1;
+      while(j >= 0 && tmp[j] > v){ tmp[j+1] = tmp[j]; j--; }
+      tmp[j+1] = v;
+    }
+    o[p] = K % 2 ? tmp[mid] : (tmp[mid-1] + tmp[mid]) >> 1;
+    if((p & 0x3fff) === 0 && performance.now() - t > 40){ busy(true, null, p/N); await nextTick(); t = performance.now(); }
+  }
+  F.bg = out;
+}
+const strobeIdx = () => { const r = []; for(let i=0;i<F.n;i+=S.st.nth) r.push(i); return r; };
+function ensureComposite(){
+  if(!compDirty && compCv.width === F.fw && compCv.height === F.fh) return;
+  const out = new ImageData(F.fw, F.fh), od = out.data, idx = strobeIdx(), L = od.length;
+  if(S.st.mode === "diff"){
+    const b = F.bg.data; od.set(b);
+    const thr = S.st.thr;
+    for(const i of idx){
+      const d = F.img[i].data;
+      for(let j=0;j<L;j+=4){
+        const dd = (Math.abs(d[j]-b[j]) + Math.abs(d[j+1]-b[j+1]) + Math.abs(d[j+2]-b[j+2]))/3 - thr;
+        if(dd <= 0) continue;
+        const a = dd >= 12 ? 1 : dd/12;
+        od[j] += (d[j]-od[j])*a; od[j+1] += (d[j+1]-od[j+1])*a; od[j+2] += (d[j+2]-od[j+2])*a;
+      }
+    }
+  } else {
+    od.set(F.img[idx[0]].data);
+    const hell = S.st.mode === "hell";
+    for(const i of idx.slice(1)){
+      const d = F.img[i].data;
+      for(let j=0;j<L;j+=4){
+        for(let c=0;c<3;c++){ const v = d[j+c]; if(hell ? v > od[j+c] : v < od[j+c]) od[j+c] = v; }
+      }
+    }
+  }
+  compCv.width = F.fw; compCv.height = F.fh;
+  compCv.getContext("2d").putImageData(out, 0, 0);
+  compDirty = false;
+}
+function frameToScratch(i){
+  if(scratchKey === i && scratch.width === F.fw) return;
+  scratch.width = F.fw; scratch.height = F.fh;
+  scratch.getContext("2d").putImageData(F.img[i], 0, 0);
+  scratchKey = i;
+}
+
+/* ================================================================
+   Vorschlag für die Lage im nächsten Bild (Mustervergleich)
+   ================================================================ */
+function diffData(i){
+  if(F.diff[i]) return F.diff[i];
+  const d = F.img[i].data, b = F.bg.data, n = F.fw*F.fh, o = new Uint8Array(n);
+  for(let k=0,j=0;k<n;k++,j+=4) o[k] = (Math.abs(d[j]-b[j]) + Math.abs(d[j+1]-b[j+1]) + Math.abs(d[j+2]-b[j+2]))/3;
+  return F.diff[i] = o;
+}
+function grayData(i){
+  if(F.gray[i]) return F.gray[i];
+  const d = F.img[i].data, n = F.fw*F.fh, o = new Uint8Array(n);
+  for(let k=0,j=0;k<n;k++,j+=4) o[k] = (d[j]*77 + d[j+1]*150 + d[j+2]*29) >> 8;
+  return F.gray[i] = o;
+}
+function suggest(i){
+  if(!F || S.pts[i]) return null;
+  let j = -1; for(let k=i-1;k>=0;k--) if(S.pts[k]){ j = k; break; }
+  if(j < 0) return null;
+  let j2 = -1; for(let k=j-1;k>=0;k--) if(S.pts[k]){ j2 = k; break; }
+  const sc = F.sc, w = F.fw, h = F.fh, pj = S.pts[j];
+  let pred = {x:pj.x, y:pj.y};
+  if(j2 >= 0){ const f = (i-j)/(j-j2); pred = {x:pj.x + (pj.x - S.pts[j2].x)*f, y:pj.y + (pj.y - S.pts[j2].y)*f}; }
+  const R = Math.max(3, Math.round(S.rad*sc)), st = Math.max(1, Math.floor(R/7));
+  const qx = Math.round(pj.x*sc), qy = Math.round(pj.y*sc);
+  const cx = Math.round(pred.x*sc), cy = Math.round(pred.y*sc);
+  // Suchbereich: ohne bekannte Geschwindigkeit (nur ein Punkt) großzügig, sonst um die vorhergesagte Lage
+  const W = Math.min(280, Math.round(j2 < 0 ? Math.max(6*R, 0.12*Math.max(w, h))
+                                            : 2*R + 0.6*Math.hypot(cx-qx, cy-qy) + 0.02*Math.max(w, h)));
+  let A = diffData(j), B = diffData(i);
+  const offs = [];
+  const build = () => { offs.length = 0;
+    for(let dy=-R;dy<=R;dy+=st) for(let dx=-R;dx<=R;dx+=st){
+      if(dx*dx + dy*dy > R*R) continue;
+      const x = qx+dx, y = qy+dy;
+      if(x >= 0 && y >= 0 && x < w && y < h) offs.push(dx, dy, A[y*w+x]);
+    } };
+  build();
+  if(!offs.length) return null;
+  let e = 0; for(let k=2;k<offs.length;k+=3) e += offs[k];
+  if(e/(offs.length/3) < 8){ A = grayData(j); B = grayData(i); build(); }   // Körper stand still: auf dem Bild selbst suchen
+  const score = (px, py) => {
+    let s = 0;
+    for(let k=0;k<offs.length;k+=3){
+      const x = px + offs[k], y = py + offs[k+1];
+      s += (x < 0 || y < 0 || x >= w || y >= h) ? 128 : Math.abs(B[y*w+x] - offs[k+2]);
+    }
+    return s * (1 + 0.25*((px-cx)**2 + (py-cy)**2)/(W*W));
+  };
+  let best = Infinity, bx = cx, by = cy;
+  const cs = W > 30 ? 2 : 1;
+  for(let dy=-W;dy<=W;dy+=cs) for(let dx=-W;dx<=W;dx+=cs){
+    const s = score(cx+dx, cy+dy); if(s < best){ best = s; bx = cx+dx; by = cy+dy; }
+  }
+  const fx = bx, fy = by;
+  for(let dy=-cs;dy<=cs;dy++) for(let dx=-cs;dx<=cs;dx++){
+    const s = score(fx+dx, fy+dy); if(s < best){ best = s; bx = fx+dx; by = fy+dy; }
+  }
+  return {x: clamp(bx/sc, 0, V.vw), y: clamp(by/sc, 0, V.vh)};
+}
+function updateSuggestion(){ S.sug = (S.step === "markieren" && S.showSug) ? suggest(S.cur) : null; }
+function updateFocus(){
+  let p = S.pts[S.cur] || S.sug;
+  if(!p){ for(let k=S.cur-1;k>=0;k--) if(S.pts[k]){ p = S.pts[k]; break; } }
+  S.focus = p ? {x:p.x, y:p.y} : null;
+}
+
+/* ================================================================
+   Bühne zeichnen
+   ================================================================ */
+function prep(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if(cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){ cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  return {ctx, W, H};
+}
+function layoutStage(){
+  const W = $("#stagewrap").clientWidth || 600;
+  const ar = V ? V.vh/V.vw : 9/16;
+  const wide = matchMedia("(min-width:900px) and (min-height:600px)").matches;
+  let max = wide ? (S.step === "auswerten" ? innerHeight*0.5 : innerHeight - 170) : innerHeight*0.62;
+  const h = Math.round(clamp(W*ar, 200, Math.max(200, max)));
+  if(stage.style.height !== h + "px") stage.style.height = h + "px";
+}
+function stageT(){
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const s0 = Math.min(W/V.vw, H/V.vh), z = S.step === "markieren" ? S.zoom : 1, s = s0*z;
+  let c = {x:V.vw/2, y:V.vh/2};
+  if(z > 1 && S.focus) c = {x:S.focus.x, y:S.focus.y};
+  const hw = W/(2*s), hh = H/(2*s);
+  c.x = V.vw*s <= W ? V.vw/2 : clamp(c.x, hw, V.vw - hw);
+  c.y = V.vh*s <= H ? V.vh/2 : clamp(c.y, hh, V.vh - hh);
+  return {s, ox: W/2 - c.x*s, oy: H/2 - c.y*s, W, H};
+}
+let T = null, frozenT = null;
+function stageSource(){
+  if(!F || S.step === "video" || S.step === "bereich") return {el:vid, w:V.vw, h:V.vh, k:1};
+  if(S.step === "strobo" || S.step === "auswerten"){ ensureComposite(); return {el:compCv, w:F.fw, h:F.fh, k:F.sc}; }
+  frameToScratch(S.cur); return {el:scratch, w:F.fw, h:F.fh, k:F.sc};
+}
+const toS = (T, p) => ({x: T.ox + p.x*T.s, y: T.oy + p.y*T.s});
+function haloText(ctx, txt, x, y, u, color, size=13, weight=700, align="left"){
+  ctx.font = `${weight} ${size*u}px system-ui,-apple-system,sans-serif`;
+  ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  ctx.lineWidth = 3.5*u; ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.strokeText(txt, x, y);
+  ctx.fillStyle = color; ctx.fillText(txt, x, y);
+}
+function arrow(ctx, x1, y1, x2, y2, u, col, w=2.5){
+  const a = Math.atan2(y2-y1, x2-x1), L = 11*u;
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w*u; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2 - Math.cos(a)*L*0.6, y2 - Math.sin(a)*L*0.6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2 - L*Math.cos(a-0.4), y2 - L*Math.sin(a-0.4)); ctx.lineTo(x2 - L*Math.cos(a+0.4), y2 - L*Math.sin(a+0.4)); ctx.closePath(); ctx.fill();
+}
+function handle(ctx, p, u, col, filled){
+  ctx.beginPath(); ctx.arc(p.x, p.y, 11*u, 0, 7);
+  ctx.fillStyle = filled ? col : "rgba(255,255,255,.85)"; ctx.fill();
+  ctx.lineWidth = 3*u; ctx.strokeStyle = filled ? "#fff" : col; ctx.stroke();
+}
+function drawScale(ctx, T, u, handles){
+  const a = toS(T, S.scale.a), b = toS(T, S.scale.b), col = css("--scale");
+  const ang = Math.atan2(b.y-a.y, b.x-a.x), nx = -Math.sin(ang), ny = Math.cos(ang);
+  ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 6*u; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 3*u;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+  for(const p of [a,b]){ ctx.moveTo(p.x - nx*9*u, p.y - ny*9*u); ctx.lineTo(p.x + nx*9*u, p.y + ny*9*u); }
+  ctx.stroke();
+  const m = {x:(a.x+b.x)/2 - nx*18*u, y:(a.y+b.y)/2 - ny*18*u};
+  haloText(ctx, fmt(S.scale.len, S.scale.len < 0.1 ? 3 : 2) + " m", m.x, m.y, u, col, 14, 700, "center");
+  if(handles){ handle(ctx, a, u, col, false); handle(ctx, b, u, col, false); }
+}
+function drawAxes(ctx, T, u, handles, alpha=1){
+  const {ux, uy} = axesVecs(), L = S.axes.len*T.s, o = toS(T, S.axes.o), col = css("--axc");
+  ctx.save(); ctx.globalAlpha = alpha;
+  const xt = {x:o.x + ux.x*L, y:o.y + ux.y*L}, yt = {x:o.x + uy.x*L, y:o.y + uy.y*L};
+  arrow(ctx, o.x, o.y, xt.x, xt.y, u, "rgba(255,255,255,.8)", 5.5); arrow(ctx, o.x, o.y, yt.x, yt.y, u, "rgba(255,255,255,.8)", 5.5);
+  arrow(ctx, o.x, o.y, xt.x, xt.y, u, col); arrow(ctx, o.x, o.y, yt.x, yt.y, u, col);
+  haloText(ctx, "x", xt.x + ux.x*14*u, xt.y + ux.y*14*u, u, col, 16, 700, "center");
+  haloText(ctx, "y", yt.x + uy.x*14*u, yt.y + uy.y*14*u, u, col, 16, 700, "center");
+  if(handles){ handle(ctx, xt, u, col, false); handle(ctx, o, u, col, true); }
+  else { ctx.beginPath(); ctx.arc(o.x, o.y, 4*u, 0, 7); ctx.fillStyle = col; ctx.fill(); }
+  ctx.restore();
+}
+function drawPoints(ctx, T, u, o={}){
+  const col = css("--pt"), P = [];
+  S.pts.forEach((p,i) => { if(p && (o.except == null || i !== o.except)) P.push([i, toS(T,p)]); });
+  if(P.length > 1){
+    ctx.strokeStyle = col; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.5*u;
+    ctx.beginPath(); P.forEach(([i,q],k) => k ? ctx.lineTo(q.x,q.y) : ctx.moveTo(q.x,q.y)); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  for(const [i,q] of P){
+    ctx.beginPath(); ctx.arc(q.x, q.y, 4.5*u, 0, 7);
+    ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 1.6*u; ctx.strokeStyle = "#fff"; ctx.stroke();
+    if(o.num) haloText(ctx, String(i+1), q.x + 8*u, q.y - 10*u, u, col, 12);
+  }
+  if(o.sel != null && S.pts[o.sel]){
+    const q = toS(T, S.pts[o.sel]);
+    ctx.beginPath(); ctx.arc(q.x, q.y, 13*u, 0, 7); ctx.lineWidth = 6*u; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.stroke();
+    ctx.lineWidth = 3*u; ctx.strokeStyle = css("--sel"); ctx.stroke();
+  }
+}
+function drawMark(ctx, T, p, col, dashed, label){
+  const q = toS(T, p), r = Math.max(8, S.rad*T.s);
+  ctx.save();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(255,255,255,.85)";
+  ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 2; if(dashed) ctx.setLineDash([6,5]);
+  ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(q.x-6, q.y); ctx.lineTo(q.x+6, q.y); ctx.moveTo(q.x, q.y-6); ctx.lineTo(q.x, q.y+6); ctx.stroke();
+  if(label) haloText(ctx, label, q.x, q.y - r - 10, 1, col, 12.5, 700, "center");
+  ctx.restore();
+}
+function drawStage(){
+  const {ctx, W, H} = prep(stage);
+  ctx.fillStyle = css("--stagebg"); ctx.fillRect(0, 0, W, H);
+  $("#empty").hidden = !!V;
+  if(!V) return;
+  T = frozenT || stageT();
+  const src = stageSource();
+  ctx.imageSmoothingEnabled = true;
+  try{ ctx.drawImage(src.el, 0, 0, src.w, src.h, T.ox, T.oy, V.vw*T.s, V.vh*T.s); }catch(e){}
+  const st = S.step;
+  if(st === "bereich"){
+    const inR = S.scrub >= S.n0 && S.scrub <= S.n1;
+    const lab = S.scrub === S.n0 ? "Start" : S.scrub === S.n1 ? "Ende" : inR ? "" : "außerhalb des Zeitbereichs";
+    if(lab) haloText(ctx, lab, 12, 18, 1, lab === "Start" ? css("--start") : lab === "Ende" ? css("--end") : "#5d6670", 14);
+  }
+  if(!F) return;
+  if(st === "strobo"){
+    if(S.st.axes){ drawScale(ctx, T, 1, false); drawAxes(ctx, T, 1, false); }
+    if(S.st.pts) drawPoints(ctx, T, 1, {num:S.st.num, sel:S.cur});
+  } else if(st === "auswerten"){
+    if(S.st.axes){ drawScale(ctx, T, 1, false); drawAxes(ctx, T, 1, false); }
+    drawPoints(ctx, T, 1, {num:S.st.num, sel:S.cur});
+  } else if(st === "massstab"){
+    drawPoints(ctx, T, 1, {});
+    drawScale(ctx, T, 1, true); drawAxes(ctx, T, 1, true);
+  } else if(st === "markieren"){
+    drawAxes(ctx, T, 1, false, 0.35);
+    if(S.showTrail) drawPoints(ctx, T, 0.85, {except:S.cur});
+    if(drag && drag.kind === "pt") drawMark(ctx, T, drag.pos, css("--pt"), false);
+    else if(S.pts[S.cur]) drawMark(ctx, T, S.pts[S.cur], css("--pt"), false, "Bild " + (S.cur+1));
+    else if(S.sug) drawMark(ctx, T, S.sug, css("--sug"), true, "Vorschlag");
+  }
+}
+
+/* Lupe */
+function showLoupe(p, im){
+  const Lp = 150, wrap = $("#stagewrap"), Ww = wrap.clientWidth, Hw = wrap.clientHeight;
+  let lx = p.x - Lp - 34, ly = p.y - Lp - 34;
+  if(lx < 4) lx = p.x + 34;
+  if(ly < 4) ly = Math.min(p.y + 34, Hw - Lp - 4);
+  lx = clamp(lx, 4, Math.max(4, Ww - Lp - 4)); ly = clamp(ly, 4, Math.max(4, Hw - Lp - 4));
+  loupe.style.left = lx + "px"; loupe.style.top = ly + "px"; loupe.style.display = "block";
+  const {ctx} = prep(loupe), src = stageSource(), mag = 3;
+  const size = Lp/(T.s*mag);                       // Seitenlänge des Ausschnitts in Videopixeln
+  ctx.fillStyle = "#222"; ctx.fillRect(0, 0, Lp, Lp);
+  // Ausschnitt auf das Bild begrenzen (ältere Safari-Versionen zeichnen sonst nichts)
+  let sx = im.x - size/2, sy = im.y - size/2, sw = size, sh = size, dx = 0, dy = 0, dw = Lp, dh = Lp;
+  const k = Lp/size;
+  if(sx < 0){ dx = -sx*k; dw -= dx; sw += sx; sx = 0; }
+  if(sy < 0){ dy = -sy*k; dh -= dy; sh += sy; sy = 0; }
+  if(sx + sw > V.vw){ const c = sx + sw - V.vw; sw -= c; dw -= c*k; }
+  if(sy + sh > V.vh){ const c = sy + sh - V.vh; sh -= c; dh -= c*k; }
+  if(sw > 0 && sh > 0) try{ ctx.drawImage(src.el, sx*src.k, sy*src.k, sw*src.k, sh*src.k, dx, dy, dw, dh); }catch(e){}
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(Lp/2-16, Lp/2); ctx.lineTo(Lp/2-4, Lp/2); ctx.moveTo(Lp/2+4, Lp/2); ctx.lineTo(Lp/2+16, Lp/2);
+  ctx.moveTo(Lp/2, Lp/2-16); ctx.lineTo(Lp/2, Lp/2-4); ctx.moveTo(Lp/2, Lp/2+4); ctx.lineTo(Lp/2, Lp/2+16); ctx.stroke();
+  ctx.strokeStyle = "#e11d48"; ctx.lineWidth = 1.5; ctx.stroke();
+  if(drag && drag.kind === "pt"){
+    ctx.beginPath(); ctx.arc(Lp/2, Lp/2, Math.max(6, S.rad*T.s*mag), 0, 7); ctx.strokeStyle = css("--pt"); ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+function hideLoupe(){ loupe.style.display = "none"; }
+
+/* Bedienung auf der Bühne */
+let drag = null;
+function locOf(e, el){ const r = el.getBoundingClientRect(); return {x:e.clientX - r.left, y:e.clientY - r.top}; }
+const toImg = p => ({x: clamp((p.x - T.ox)/T.s, 0, V.vw), y: clamp((p.y - T.oy)/T.s, 0, V.vh)});
+function hitHandle(p){
+  const {ux} = axesVecs(), o = S.axes.o, L = S.axes.len;
+  const H = [["a", S.scale.a], ["b", S.scale.b], ["x", {x:o.x + ux.x*L, y:o.y + ux.y*L}], ["o", o]];
+  let best = null, bd = coarse() ? 34 : 22;
+  for(const [k, q] of H){ const s = toS(T, q), d = Math.hypot(s.x - p.x, s.y - p.y); if(d < bd){ bd = d; best = k; } }
+  return best;
+}
+stage.addEventListener("pointerdown", e => {
+  if(!V || !T || e.button > 0) return;
+  const p = locOf(e, stage);
+  if(S.step === "massstab"){
+    const k = hitHandle(p); if(!k) return;
+    drag = {kind:k, id:e.pointerId}; frozenT = T;
+  } else if(S.step === "markieren" && F){
+    drag = {kind:"pt", id:e.pointerId, pos:toImg(p)}; frozenT = T;
+  } else if((S.step === "strobo" || S.step === "auswerten") && F){
+    let best = -1, bd = coarse() ? 36 : 24;
+    S.pts.forEach((q,i) => { if(!q) return; const s = toS(T,q), d = Math.hypot(s.x-p.x, s.y-p.y); if(d < bd){ bd = d; best = i; } });
+    if(best >= 0){ setCur(best); }
+    return;
+  } else return;
+  e.preventDefault();
+  try{ stage.setPointerCapture(e.pointerId); }catch(err){}
+  moveDrag(p);
+});
+function moveDrag(p){
+  const im = toImg(p);
+  const k = drag.kind;
+  if(k === "a" || k === "b"){ S.scale[k] = im; S.scaleSet = true; dirty(); }
+  else if(k === "o"){ S.axes.o = im; dirty(); }
+  else if(k === "x"){ const o = S.axes.o; S.axes.ang = Math.atan2(im.y - o.y, im.x - o.x); S.axes.len = Math.max(20/T.s, Math.hypot(im.x-o.x, im.y-o.y)); dirty(); }
+  else if(k === "pt") drag.pos = im;
+  drawStage(); showLoupe(p, im);
+  if(k !== "pt") updatePanels();
+}
+stage.addEventListener("pointermove", e => { if(drag && e.pointerId === drag.id){ e.preventDefault(); moveDrag(locOf(e, stage)); } });
+function endDrag(e, cancel){
+  if(!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null; frozenT = null; hideLoupe();
+  if(d.kind === "pt" && !cancel) setPoint(d.pos);
+  else { saveLocal(); render(); updatePanels(); }
+}
+stage.addEventListener("pointerup", e => endDrag(e, false));
+stage.addEventListener("pointercancel", e => endDrag(e, true));
+
+function setPoint(pos){
+  S.pts[S.cur] = {x:pos.x, y:pos.y}; dirty();
+  if(S.cur < F.n - 1) S.cur++;
+  afterFrameChange(); saveLocal();
+}
+function acceptSug(){ if(S.step === "markieren" && S.sug) setPoint(S.sug); }
+function deletePoint(){ if(F && S.pts[S.cur]){ S.pts[S.cur] = null; dirty(); afterFrameChange(); saveLocal(); } }
+function setCur(i){ if(!F) return; S.cur = clamp(i, 0, F.n-1); afterFrameChange(); }
+function afterFrameChange(){
+  updateSuggestion(); updateFocus();
+  updatePlayer(); updatePanels(); render();
+}
+
+/* ================================================================
+   Diagramme
+   ================================================================ */
+function niceStep(x){
+  const e = Math.floor(Math.log10(x)), f = x/Math.pow(10,e);
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)*Math.pow(10,e);
+}
+function niceRange(lo, hi, n){
+  if(hi - lo < 1e-9){ lo -= 0.5; hi += 0.5; }
+  const step = niceStep((hi-lo)/n);
+  return {lo: Math.floor(lo/step + 1e-9)*step, hi: Math.ceil(hi/step - 1e-9)*step, step};
+}
+function richText(ctx, s, x, y, align="left", size=13, color){
+  const parts = [];
+  s.replace(/([^_]+)|_(\w)/g, (m, a, b) => { parts.push(a != null ? {t:a, sub:false} : {t:b, sub:true}); return m; });
+  const font = n => `${n}px system-ui,-apple-system,sans-serif`;
+  let w = 0;
+  for(const p of parts){ ctx.font = font(p.sub ? size*0.75 : size); p.w = ctx.measureText(p.t).width; w += p.w; }
+  let cx = align === "center" ? x - w/2 : align === "right" ? x - w : x;
+  ctx.textAlign = "left"; if(color) ctx.fillStyle = color;
+  for(const p of parts){ ctx.font = font(p.sub ? size*0.75 : size); ctx.fillText(p.t, cx, y + (p.sub ? size*0.3 : 0)); cx += p.w; }
+}
+const charts = [null, null];
+const hidden = () => S.predict && !S.revealed;
+function chartPts(ci){
+  const q = QS[S.ch[ci].q];
+  return series().filter(p => Number.isFinite(q.get(p))).map(p => ({i:p.i, x: q.bahn ? p.x : p.t, y: q.get(p)}));
+}
+function chartRange(ci, pts){
+  const q = QS[S.ch[ci].q];
+  let xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  for(const st of S.pred[ci]) for(const p of st){ xs.push(p.x); ys.push(p.y); }
+  let xlo, xhi;
+  if(q.bahn){ xlo = xs.length ? Math.min(...xs) : 0; xhi = xs.length ? Math.max(...xs) : 1; }
+  else { xlo = 0; xhi = F ? Math.max(frameTime(F.n - 1), 1e-3) : 1; }
+  let ylo = ys.length ? Math.min(...ys) : -1, yhi = ys.length ? Math.max(...ys) : 1;
+  if(!q.bahn){ ylo = Math.min(ylo, 0); yhi = Math.max(yhi, 0); }
+  const dy = (yhi - ylo) || 1, dx = (xhi - xlo) || 1;
+  ylo -= dy*0.06; yhi += dy*0.06;
+  if(q.bahn){ xlo -= dx*0.06; xhi += dx*0.06; }
+  return {xlo, xhi, ylo, yhi};
+}
+function fitCoef(c){
+  const h = c.h;
+  if(c.fit === "gerade"){ const m = (h[1].y - h[0].y)/(h[1].x - h[0].x); return {A:0, B:m, C:h[0].y - m*h[0].x}; }
+  const [p0, p1, p2] = h;
+  const d01 = (p1.y-p0.y)/(p1.x-p0.x), d12 = (p2.y-p1.y)/(p2.x-p1.x);
+  const A = (d12 - d01)/(p2.x - p0.x), B = d01 - A*(p0.x + p1.x), C = p0.y - A*p0.x*p0.x - B*p0.x;
+  return {A, B, C};
+}
+function initHandles(ci, R){
+  const c = S.ch[ci], pts = chartPts(ci);
+  const ym = pts.length ? pts.reduce((s,p) => s + p.y, 0)/pts.length : (R.ylo + R.yhi)/2;
+  const xl = pts.length ? Math.min(...pts.map(p => p.x)) : R.xlo, xh = pts.length ? Math.max(...pts.map(p => p.x)) : R.xhi, d = xh - xl || 1;
+  c.h = (c.fit === "gerade" ? [0.2, 0.8] : [0.15, 0.5, 0.85]).map(f => ({x: xl + f*d, y: ym}));
+}
+function drawChart(ci, cvIn, o={}){
+  const cv = cvIn || $("#ch" + ci);
+  const {ctx, W, H} = prep(cv);
+  const c = S.ch[ci], q = QS[c.q], hide = hidden();
+  const pts = chartPts(ci);
+  const m = {l:62, r:14, t:14, b:42}, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const R = (o.keep && charts[ci]) ? charts[ci].R : chartRange(ci, pts);
+  const xr = niceRange(R.xlo, R.xhi, Math.max(3, Math.floor(pw/80)));
+  const yr = niceRange(R.ylo, R.yhi, Math.max(3, Math.floor(ph/50)));
+  let xlo = xr.lo, xhi = xr.hi, ylo = yr.lo, yhi = yr.hi;
+  if(q.bahn){   // Bahnkurve unverzerrt: gleicher Maßstab auf beiden Achsen
+    const kx = pw/(xhi-xlo), ky = ph/(yhi-ylo);
+    if(kx > ky){ const span = pw/ky, mid = (xlo+xhi)/2; xlo = mid - span/2; xhi = mid + span/2; }
+    else { const span = ph/kx, mid = (ylo+yhi)/2; ylo = mid - span/2; yhi = mid + span/2; }
+  }
+  const X = v => m.l + (v - xlo)/(xhi - xlo)*pw, Y = v => m.t + ph - (v - ylo)/(yhi - ylo)*ph;
+  const iX = px => xlo + (px - m.l)/pw*(xhi - xlo), iY = py => ylo + (m.t + ph - py)/ph*(yhi - ylo);
+  const dec = st => Math.max(0, -Math.floor(Math.log10(st) + 1e-9));
+  const xs = q.bahn ? niceStep((xhi-xlo)/Math.max(3, Math.floor(pw/80))) : xr.step;
+  const ys = q.bahn ? xs : yr.step;
+  // Gitter
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1; ctx.fillStyle = css("--muted");
+  ctx.font = "12px system-ui,-apple-system,sans-serif"; ctx.textBaseline = "middle";
+  ctx.beginPath();
+  for(let v = Math.ceil(xlo/xs - 1e-9)*xs; v <= xhi + 1e-9; v += xs){ ctx.moveTo(X(v), m.t); ctx.lineTo(X(v), m.t + ph); }
+  for(let v = Math.ceil(ylo/ys - 1e-9)*ys; v <= yhi + 1e-9; v += ys){ ctx.moveTo(m.l, Y(v)); ctx.lineTo(m.l + pw, Y(v)); }
+  ctx.stroke();
+  ctx.textAlign = "center";
+  for(let v = Math.ceil(xlo/xs - 1e-9)*xs; v <= xhi + 1e-9; v += xs) ctx.fillText(fmt(v, dec(xs)), X(v), m.t + ph + 13);
+  ctx.textAlign = "right";
+  for(let v = Math.ceil(ylo/ys - 1e-9)*ys; v <= yhi + 1e-9; v += ys) ctx.fillText(fmt(v, dec(ys)), m.l - 6, Y(v));
+  // Achsen (Nulllinien)
+  ctx.strokeStyle = css("--axis"); ctx.lineWidth = 1.4; ctx.beginPath();
+  const y0 = ylo <= 0 && yhi >= 0 ? Y(0) : m.t + ph, x0 = xlo <= 0 && xhi >= 0 ? X(0) : m.l;
+  ctx.moveTo(m.l, y0); ctx.lineTo(m.l + pw, y0); ctx.moveTo(x0, m.t); ctx.lineTo(x0, m.t + ph); ctx.stroke();
+  ctx.fillStyle = css("--muted"); ctx.textBaseline = "alphabetic";
+  richText(ctx, q.bahn ? "x in m" : "t in s", m.l + pw, H - 6, "right", 13);
+  ctx.save(); ctx.translate(14, m.t + ph/2); ctx.rotate(-Math.PI/2);
+  richText(ctx, q.sym + " in " + q.u, 0, 0, "center", 13); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+  // Vorhersage
+  if(S.pred[ci].length){
+    ctx.strokeStyle = css("--pred"); ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if(!hide) ctx.setLineDash([7,6]);
+    for(const st of S.pred[ci]){ ctx.beginPath(); st.forEach((p,k) => k ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y))); ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+  if(!hide){
+    // Kurve
+    if(c.fit !== "none"){
+      if(!c.h || c.h.length !== (c.fit === "gerade" ? 2 : 3)) initHandles(ci, {xlo, xhi, ylo, yhi});
+      const k = fitCoef(c), f = x => (k.A*x + k.B)*x + k.C;
+      ctx.strokeStyle = css("--fit"); ctx.lineWidth = 2.5; ctx.beginPath();
+      for(let px = 0; px <= pw; px += 3){ const x = iX(m.l + px), y = Y(f(x)); px ? ctx.lineTo(m.l+px, y) : ctx.moveTo(m.l+px, y); }
+      ctx.stroke();
+    }
+    // Messpunkte
+    const col = css("--pt");
+    if(q.bahn && pts.length > 1){ ctx.strokeStyle = col; ctx.globalAlpha = .35; ctx.lineWidth = 1.5; ctx.beginPath(); pts.forEach((p,k) => k ? ctx.lineTo(X(p.x),Y(p.y)) : ctx.moveTo(X(p.x),Y(p.y))); ctx.stroke(); ctx.globalAlpha = 1; }
+    for(const p of pts){ ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4.2, 0, 7); ctx.fillStyle = col; ctx.fill(); }
+    const sp = pts.find(p => p.i === S.cur);
+    if(sp && !o.print){ ctx.beginPath(); ctx.arc(X(sp.x), Y(sp.y), 9, 0, 7); ctx.strokeStyle = css("--sel"); ctx.lineWidth = 2.5; ctx.stroke(); }
+    if(c.fit !== "none" && !o.print) for(const h of c.h) handle(ctx, {x:X(h.x), y:Y(h.y)}, 0.82, css("--fit"), true);
+    if(!pts.length){ ctx.fillStyle = css("--muted"); ctx.textAlign = "center"; ctx.font = "14px system-ui,sans-serif";
+      ctx.fillText(c.q.startsWith("a") ? "Zu wenige Punkte für die Beschleunigung" : "Noch keine Messwerte", m.l + pw/2, m.t + ph/2); }
+  } else if(!S.pred[ci].length){
+    ctx.fillStyle = css("--muted"); ctx.textAlign = "center"; ctx.font = "14px system-ui,sans-serif";
+    ctx.fillText(coarse() ? "Skizziere hier mit dem Finger deine Vorhersage" : "Skizziere hier mit der Maus deine Vorhersage", m.l + pw/2, m.t + ph/2);
+  }
+  ctx.restore();
+  if(!cvIn) charts[ci] = {X, Y, iX, iY, m, pw, ph, R, pts, xlo, xhi, ylo, yhi};
+  cv.classList.toggle("grab", hide || c.fit !== "none");
+}
+function fitText(ci){
+  const c = S.ch[ci], q = QS[c.q];
+  if(c.fit === "none" || hidden() || !c.h) return "";
+  const k = fitCoef(c), v = q.bahn ? "x" : "t", fn = q.h;
+  const per = {"m":"m/s", "m/s":"m/s²", "m/s²":"m/s³"}[q.u];
+  const sgn = (x, u) => (x < 0 ? " − " : " + ") + fs(Math.abs(x)) + (u ? " " + u : "");
+  const pts = chartPts(ci), f = x => (k.A*x + k.B)*x + k.C;
+  const rms = pts.length ? Math.sqrt(pts.reduce((s,p) => s + (p.y - f(p.x))**2, 0)/pts.length) : NaN;
+  let h = "";
+  if(c.fit === "gerade"){
+    h = `<b>${fn}(${v}) = ${fs(k.B)} ${q.bahn ? "" : per} · ${v}${sgn(k.C, q.u)}</b><br>`;
+    if(!q.bahn){
+      h += `Steigung: ${fs(k.B)} ${per}`;
+      if(["x","y"].includes(c.q)) h += ` → Geschwindigkeit ${c.q === "x" ? "v<sub>x</sub>" : "v<sub>y</sub>"} = ${fs(k.B)} m/s`;
+      if(["vx","vy"].includes(c.q)) h += ` → Beschleunigung ${c.q === "vx" ? "a<sub>x</sub>" : "a<sub>y</sub>"} = ${fs(k.B)} m/s²`;
+      if(c.q === "v") h += ` (bei geradliniger Bewegung: Beschleunigung a = ${fs(k.B)} m/s²)`;
+      h += `<br>Achsenabschnitt: ${fn}(0) = ${fs(k.C)} ${q.u}`;
+    } else h += `Steigung: ${fs(k.B)}`;
+  } else {
+    if(["x","y"].includes(c.q)){
+      const s = c.q;
+      h = `<b>${s}(t) = ½ · a<sub>${s}</sub> · t² + v<sub>${s}0</sub> · t + ${s}<sub>0</sub></b><br>
+        a<sub>${s}</sub> = ${fs(2*k.A)} m/s² · v<sub>${s}0</sub> = ${fs(k.B)} m/s · ${s}<sub>0</sub> = ${fs(k.C)} m`;
+    } else if(q.bahn){
+      h = `<b>y(x) = ${fs(k.A)} 1/m · x²${sgn(k.B)} · x${sgn(k.C, "m")}</b>`;
+    } else {
+      h = `<b>${fn}(t) = ${fs(k.A)} ${q.u}/s² · t²${sgn(k.B, per)} · t${sgn(k.C, q.u)}</b>`;
+    }
+  }
+  if(isFinite(rms)) h += `<br><span class="q">Mittlere Abweichung der Messpunkte von der Kurve: ${fs(rms, 2)} ${q.u}</span>`;
+  return h;
+}
+function renderFits(){ for(const ci of [0,1]) $("#fr" + ci).innerHTML = fitText(ci); }
+
+/* Bedienung der Diagramme */
+let cdrag = null;
+function chartDown(ci, e){
+  const ch = charts[ci]; if(!ch || e.button > 0) return;
+  const cv = $("#ch" + ci), p = locOf(e, cv), c = S.ch[ci];
+  if(hidden()){
+    cdrag = {ci, kind:"pred", id:e.pointerId};
+    S.pred[ci].push([{x: ch.iX(p.x), y: ch.iY(p.y)}]);
+  } else {
+    let hk = -1;
+    if(c.fit !== "none" && c.h){ let bd = coarse() ? 30 : 18; c.h.forEach((h,k) => { const d = Math.hypot(ch.X(h.x) - p.x, ch.Y(h.y) - p.y); if(d < bd){ bd = d; hk = k; } }); }
+    if(hk >= 0) cdrag = {ci, kind:"h", k:hk, id:e.pointerId};
+    else { cdrag = {ci, kind:"sel", id:e.pointerId}; selectNear(ci, p); }
+  }
+  if(cdrag.kind !== "sel" || e.pointerType === "mouse"){ e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(err){} }
+}
+function selectNear(ci, p){
+  const ch = charts[ci], q = QS[S.ch[ci].q];
+  let best = null, bd = Infinity;
+  for(const pt of ch.pts){ const d = q.bahn ? Math.hypot(ch.X(pt.x) - p.x, ch.Y(pt.y) - p.y) : Math.abs(ch.X(pt.x) - p.x); if(d < bd){ bd = d; best = pt; } }
+  if(best && best.i !== S.cur) setCur(best.i);
+}
+function chartMove(ci, e){
+  if(!cdrag || cdrag.ci !== ci || e.pointerId !== cdrag.id) return;
+  const ch = charts[ci], p = locOf(e, $("#ch" + ci)), c = S.ch[ci];
+  if(cdrag.kind === "pred"){
+    e.preventDefault();
+    const st = S.pred[ci][S.pred[ci].length - 1];
+    st.push({x: ch.iX(clamp(p.x, ch.m.l, ch.m.l + ch.pw)), y: ch.iY(clamp(p.y, ch.m.t, ch.m.t + ch.ph))});
+    drawChart(ci, null, {keep:true});
+  } else if(cdrag.kind === "h"){
+    e.preventDefault();
+    const h = c.h, k = cdrag.k, gap = (ch.xhi - ch.xlo)*0.04;
+    let x = ch.iX(clamp(p.x, ch.m.l, ch.m.l + ch.pw));
+    const lo = k > 0 ? h[k-1].x + gap : ch.xlo, hi = k < h.length - 1 ? h[k+1].x - gap : ch.xhi;
+    h[k] = {x: clamp(x, lo, hi), y: ch.iY(clamp(p.y, ch.m.t, ch.m.t + ch.ph))};
+    drawChart(ci, null, {keep:true}); $("#fr" + ci).innerHTML = fitText(ci);
+  } else selectNear(ci, p);
+}
+function chartUp(ci, e){
+  if(!cdrag || cdrag.ci !== ci || e.pointerId !== cdrag.id) return;
+  const k = cdrag.kind; cdrag = null;
+  if(k === "h") saveLocal();
+  if(k !== "sel") drawChart(ci);
+}
+for(const ci of [0,1]){
+  const cv = $("#ch" + ci);
+  cv.addEventListener("pointerdown", e => chartDown(ci, e));
+  cv.addEventListener("pointermove", e => chartMove(ci, e));
+  cv.addEventListener("pointerup", e => chartUp(ci, e));
+  cv.addEventListener("pointercancel", e => chartUp(ci, e));
+}
+
+/* Tabelle */
+function renderTable(){
+  const hide = hidden();
+  $("#tblWrap").hidden = hide; $("#tblHidden").hidden = !hide;
+  if(hide) return;
+  const P = series();
+  const td = (v, d) => `<td>${v == null ? "–" : fmt(v, d)}</td>`;
+  let h = `<thead><tr><th>Bild</th><th>t in s</th><th>x in m</th><th>y in m</th><th>v<sub>x</sub> in m/s</th><th>v<sub>y</sub> in m/s</th><th>v in m/s</th><th>a<sub>x</sub> in m/s²</th><th>a<sub>y</sub> in m/s²</th></tr></thead><tbody>`;
+  for(const p of P) h += `<tr data-i="${p.i}"${p.i === S.cur ? ' class="sel"' : ""}><td>${p.i+1}</td>${td(p.t,3)}${td(p.x,3)}${td(p.y,3)}${td(p.vx,2)}${td(p.vy,2)}${td(p.v,2)}${td(p.ax,1)}${td(p.ay,1)}</tr>`;
+  if(!P.length) h += `<tr><td colspan="9" class="muted">Noch keine Punkte markiert.</td></tr>`;
+  $("#tbl").innerHTML = h + "</tbody>";
+}
+$("#tbl").addEventListener("click", e => { const tr = e.target.closest("tr[data-i]"); if(tr) setCur(+tr.dataset.i); });
+
+/* ================================================================
+   Oberfläche: Schritte, Felder, Anzeige
+   ================================================================ */
+const STEPS = [["video","Video"],["bereich","Zeitbereich"],["strobo","Stroboskop"],["massstab","Maßstab"],["markieren","Markieren"],["auswerten","Auswerten"]];
+const TITLES = {video:"Video", bereich:"Zeitbereich wählen", strobo:"Stroboskopbild", massstab:"Maßstab und Koordinatensystem", markieren:"Bewegung markieren", auswerten:"Auswertung"};
+function stepOk(id){
+  if(id === "video") return true;
+  if(id === "bereich") return !!V;
+  if(id === "auswerten") return !!F && nMarked() >= 2;
+  return !!F;
+}
+function stepDone(id){
+  return {video:!!V, bereich:!!F, strobo:!!F && S.seenStrobo, massstab:S.scaleSet, markieren:nMarked() >= 2, auswerten:false}[id];
+}
+function drawSteps(){
+  $("#steps").innerHTML = STEPS.map(([id, name], k) =>
+    `<button data-s="${id}"${S.step === id ? ' aria-current="step"' : ""}${stepOk(id) ? "" : " disabled"} class="${stepDone(id) ? "done" : ""}"><b>${k+1}</b>${name}</button>`).join("");
+}
+$("#steps").addEventListener("click", e => { const b = e.target.closest("button[data-s]"); if(b) go(b.dataset.s); });
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]"); if(!g) return;
+  e.preventDefault();
+  if(!stepOk(g.dataset.go)){ if(g.dataset.go === "auswerten") toast("Markiere zuerst mindestens zwei Punkte."); return; }
+  go(g.dataset.go);
+  if(innerWidth < 900) $("#view").scrollIntoView({behavior:"smooth"});
+});
+function go(id){
+  if(!stepOk(id)) id = "video";
+  stopPlay();
+  S.step = id; document.body.dataset.step = id;
+  if(id === "strobo") S.seenStrobo = true;
+  if(id === "markieren" && F && S.pts[S.cur] && !S.pts.every(Boolean)){ const k = S.pts.findIndex(p => !p); if(k >= 0) S.cur = k; }
+  $$("[data-step]").forEach(p => p.hidden = p.dataset.step !== id);
+  $("#charts").hidden = id !== "auswerten";
+  $("#viewTitle").textContent = TITLES[id];
+  drawSteps(); layoutStage();
+  updateSuggestion(); updateFocus(); updatePlayer(); updatePanels(); render();
+  if(id === "bereich" && V) showVideoFrame(S.scrub);
+}
+
+/* Regler-Felder */
+const FIELDS = {
+  every: {box:"#fEvery", label:"Bildabstand: jedes k-te Videobild", min:1, max:30, step:1, d:0, unit:"",
+          get:() => S.every, set:v => { S.every = v; saveHash(); }},
+  thr:   {box:"#fThr", label:"Empfindlichkeit (Schwelle)", min:4, max:120, step:1, d:0, unit:"",
+          get:() => S.st.thr, set:v => { S.st.thr = v; compDirty = true; }},
+  nth:   {box:"#fNth", label:"Im Bild: jedes m-te Bild zeigen", min:1, max:10, step:1, d:0, unit:"",
+          get:() => S.st.nth, set:v => { S.st.nth = v; compDirty = true; }},
+  len:   {box:"#fLen", label:"Länge der Strecke", min:0.01, max:5, step:0.01, d:2, unit:"m", noRange:true,
+          get:() => S.scale ? S.scale.len : 1, set:v => { S.scale.len = v; S.scaleSet = true; dirty(); }},
+  rad:   {box:"#fRad", label:"Größe des Körpers (Radius)", min:3, max:150, step:1, d:0, unit:"px",
+          get:() => S.rad, set:v => { S.rad = v; }}
+};
+function buildFields(){
+  for(const [id, f] of Object.entries(FIELDS)){
+    $(f.box).innerHTML = `<div class="field"><div class="head"><label for="${id}N">${f.label}</label><span class="num"><input id="${id}N" type="text" inputmode="decimal" autocomplete="off"><em>${f.unit}</em></span></div>
+      <div class="ctl"><button class="step" data-f="${id}" data-d="-1" aria-label="${f.label} verringern">−</button>${f.noRange ? '<span style="flex:1"></span>' : `<input type="range" id="${id}R" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.label}">`}<button class="step" data-f="${id}" data-d="1" aria-label="${f.label} erhöhen">+</button></div></div>`;
+    const apply = v => { v = clamp(Math.round(v/f.step)*f.step, f.min, f.max); f.set(+v.toFixed(f.d)); onField(id); };
+    const r = $("#" + id + "R");
+    if(r) r.addEventListener("input", () => apply(+r.value));
+    const n = $("#" + id + "N");
+    n.addEventListener("change", () => { const v = parseNum(n.value); if(isFinite(v)) apply(v); else refreshFields(); });
+    n.addEventListener("keydown", e => { if(e.key === "Enter") n.blur(); });
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("button.step[data-f]"); if(!b) return;
+    const f = FIELDS[b.dataset.f]; let v = f.get() + (+b.dataset.d)*f.step;
+    v = clamp(v, f.min, f.max); f.set(+v.toFixed(f.d)); onField(b.dataset.f);
+  });
+}
+function setFill(r){ const p = (r.value - r.min)/(r.max - r.min)*100; r.style.setProperty("--p", clamp(p,0,100) + "%"); }
+function refreshFields(){
+  for(const [id, f] of Object.entries(FIELDS)){
+    const v = f.get(), n = $("#" + id + "N"), r = $("#" + id + "R");
+    if(document.activeElement !== n) n.value = fmt(v, f.d);
+    if(r){ r.value = v; setFill(r); }
+  }
+}
+let compT;
+function onField(id){
+  refreshFields(); updatePanels();
+  if(id === "thr" || id === "nth"){ clearTimeout(compT); compT = setTimeout(() => { render(); saveLocal(); }, 60); return; }
+  if(id === "rad"){ updateSuggestion(); }
+  render(); saveLocal();
+}
+
+/* Segment-Schalter */
+function segPress(sel, attr, val){ $$(sel + " button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset[attr] === String(val)))); }
+function updatePanels(){
+  drawSteps();
+  refreshFields();
+  $("#pdfBtn").disabled = !F || nMarked() < 2;
+  if(V){
+    $("#vidInfo").hidden = false;
+    $("#iName").textContent = V.name;
+    $("#iDur").textContent = fmt(V.dur, 2) + " s (" + V.N + " Bilder)";
+    $("#iRes").textContent = V.vw + " × " + V.vh;
+    if(document.activeElement !== $("#fpsN")) $("#fpsN").value = fmt(S.fps, S.fps % 1 ? 2 : 0);
+    $("#fpsNote").textContent = S.fpsAuto ? "automatisch erkannt – bitte prüfen" : "nicht erkannt – bitte die Bildrate der Kamera eintragen";
+    segPress("#slowSeg", "slow", [1,4,8].includes(S.slow) ? S.slow : "x");
+    if(document.activeElement !== $("#slowN")) $("#slowN").value = fmt(S.slow, S.slow % 1 ? 1 : 0);
+    // Zeitbereich
+    const tt = n => `Bild ${n+1} · ${fmt(n/S.fps, 2)} s`;
+    $("#iStart").textContent = tt(S.n0); $("#iEnd").textContent = tt(S.n1);
+    const n = countFrames();
+    $("#iDt").textContent = fs(S.every/S.fps/S.slow) + " s" + (S.slow !== 1 ? " (echte Zeit)" : "");
+    $("#iCount").textContent = String(n);
+    const tm = $("#tooMany");
+    if(n > MAXF){ tm.hidden = false; tm.innerHTML = `Das wären ${n} Bilder – höchstens ${MAXF} sind möglich. <button class="btn small" id="fixEvery">Bildabstand ${Math.ceil((S.n1-S.n0)/(MAXF-1))} wählen</button>`;
+      $("#fixEvery").onclick = () => { S.every = Math.ceil((S.n1-S.n0)/(MAXF-1)); onField("every"); saveHash(); }; }
+    else if(n < 2){ tm.hidden = false; tm.textContent = "Der Zeitbereich ist zu kurz."; }
+    else tm.hidden = true;
+    $("#extractBtn").disabled = n > MAXF || n < 2;
+    $("#extractBtn").textContent = F ? "Bilder neu übernehmen" : "Bilder übernehmen";
+  }
+  // Stroboskop
+  segPress("#modeSeg", "mode", S.st.mode);
+  $("#fThr").hidden = S.st.mode !== "diff";
+  $("#modeNote").textContent = {diff:"Der unbewegte Hintergrund wird aus allen Bildern bestimmt; nur was sich bewegt, wird eingeblendet. Erscheint zu viel oder zu wenig, die Schwelle ändern.",
+    hell:"Von jedem Bildpunkt wird der hellste Wert genommen – gut für helle Körper vor dunklem Hintergrund.",
+    dunkel:"Von jedem Bildpunkt wird der dunkelste Wert genommen – gut für dunkle Körper vor hellem Hintergrund."}[S.st.mode];
+  $("#stPts").checked = S.st.pts; $("#stNum").checked = S.st.num; $("#stAxes").checked = S.st.axes;
+  // Maßstab
+  if(S.scale){
+    const px = Math.hypot(S.scale.b.x - S.scale.a.x, S.scale.b.y - S.scale.a.y);
+    $("#iScale").textContent = `Strecke: ${fmt(px, 0)} Bildpunkte → 1 m entspricht ${fmt(px/S.scale.len, 0)} Bildpunkten.` + (S.scaleSet ? "" : " (noch nicht eingestellt)");
+    $("#yUp").checked = S.axes.yUp;
+  }
+  $("#axFirst").disabled = !S.pts.some(Boolean);
+  // Markieren
+  if(F){
+    const has = !!S.pts[S.cur];
+    $("#mkStatus").innerHTML = `Bild <b>${S.cur+1}</b> von ${F.n} · t = <b>${fmt(frameTime(S.cur), 3)} s</b><br>${nMarked()} von ${F.n} Bildern markiert` + (has ? " · dieses Bild ✓" : "");
+    $("#acceptBtn").disabled = !S.sug;
+    $("#mkDel").disabled = !has;
+    $("#mkPrev").disabled = S.cur === 0; $("#mkNext").disabled = S.cur === F.n - 1;
+    segPress("#zoomSeg", "z", S.zoom);
+    $("#showSug").checked = S.showSug; $("#showTrail").checked = S.showTrail;
+    // Auswerten
+    $("#noScale").hidden = S.scaleSet;
+    $("#evStatus").textContent = `${nMarked()} Punkte · Δt = ${fs(dtFrame())} s zwischen zwei Bildern`;
+  }
+  segPress("#dqSeg", "dq", S.dq);
+  $("#dqNote").textContent = S.dq === 1 ? "Genauer zeitlich, aber empfindlicher für Markierungsfehler." : "Glatter, weil über einen längeren Zeitraum gemittelt wird.";
+  $("#optPredict").checked = S.predict;
+  for(const ci of [0,1]){ $("#q" + ci).value = S.ch[ci].q; segPress(`[data-fitseg="${ci}"]`, "fit", S.ch[ci].fit); }
+  // Vorhersage-Leiste
+  const pb = $("#predBar");
+  pb.hidden = !S.predict;
+  if(S.predict){
+    pb.innerHTML = !S.revealed
+      ? `<p><b>Vorhersage:</b> Schau dir das Stroboskopbild an und skizziere in beiden Diagrammen, wie sie aussehen werden. Dann decke die Messwerte auf.</p><button class="btn" id="predClear">Skizzen löschen</button><button class="btn primary" id="predReveal">Ergebnisse aufdecken</button>`
+      : `<p>Deine Vorhersage ist <b style="color:var(--pred)">gestrichelt</b> eingezeichnet. Wo stimmt sie, wo nicht?</p><button class="btn" id="predAgain">Neu vorhersagen</button>`;
+    const b1 = $("#predClear"), b2 = $("#predReveal"), b3 = $("#predAgain");
+    if(b1) b1.onclick = () => { S.pred = [[],[]]; render(); };
+    if(b2) b2.onclick = () => { S.revealed = true; updatePanels(); render(); };
+    if(b3) b3.onclick = () => { S.revealed = false; S.pred = [[],[]]; updatePanels(); render(); };
+  }
+  $("#chartHint").innerHTML = hidden() ? "" :
+    `<span class="touch">Antippen oder waagrecht wischen wählt ein Bild. </span><span class="mouse">Klicken wählt ein Bild. </span>Gerade oder Parabel: die grünen Punkte so ziehen, dass die Kurve gut zu den Messpunkten passt.`;
+  // Legende
+  const lg = {
+    massstab:`<span><i style="background:var(--scale)"></i>Maßstab</span><span><i style="background:var(--axc)"></i>Koordinatensystem</span>`,
+    markieren:`<span><i style="background:var(--pt)"></i>markierter Punkt</span><span><i style="border:2px dashed var(--sug)"></i>Vorschlag</span>`,
+    strobo: F && nMarked() ? `<span><i style="background:var(--pt)"></i>markierte Punkte</span><span><i style="border:2px solid var(--sel)"></i>gewähltes Bild</span>` : "",
+    auswerten:`<span><i style="background:var(--pt)"></i>Messpunkte</span><span><i style="border:2px solid var(--sel)"></i>gewähltes Bild</span>`
+  }[S.step] || "";
+  $("#legend").innerHTML = lg;
+}
+
+/* Abspielleiste */
+let playing = false, playRaf = 0;
+function updatePlayer(){
+  const pl = $("#player"), sl = $("#scrub");
+  pl.hidden = !V || S.step === "video" || (S.step !== "bereich" && !F);
+  if(pl.hidden) return;
+  $("#playBtn").hidden = S.step !== "bereich";
+  if(S.step === "bereich"){
+    sl.max = V.N - 1; sl.value = S.scrub;
+    const a = S.n0/(V.N-1)*100, b = S.n1/(V.N-1)*100, p = S.scrub/(V.N-1)*100;
+    sl.style.setProperty("--bgr", `linear-gradient(to right,var(--track) ${a}%,var(--accent) ${a}%,var(--accent) ${b}%,var(--track) ${b}%)`);
+    sl.style.setProperty("--p", p + "%");
+    $("#flabel").textContent = `Bild ${S.scrub+1} · ${fmt(S.scrub/S.fps, 2)} s`;
+  } else {
+    sl.max = F.n - 1; sl.value = S.cur;
+    sl.style.removeProperty("--bgr"); setFill(sl);
+    $("#flabel").textContent = `Bild ${S.cur+1}/${F.n} · t = ${fmt(frameTime(S.cur), 3)} s`;
+  }
+  $("#playBtn").textContent = playing ? "⏸" : "▶";
+}
+$("#scrub").addEventListener("input", e => {
+  const v = +e.target.value;
+  if(S.step === "bereich"){ stopPlay(); S.scrub = v; updatePlayer(); showVideoFrame(v); }
+  else setCur(v);
+});
+function stepFrame(d){
+  if(S.step === "bereich"){ stopPlay(); S.scrub = clamp(S.scrub + d, 0, V.N - 1); updatePlayer(); showVideoFrame(S.scrub); }
+  else if(F) setCur(S.cur + d);
+}
+$("#prevBtn").addEventListener("click", () => stepFrame(-1));
+$("#nextBtn").addEventListener("click", () => stepFrame(1));
+$("#playBtn").addEventListener("click", () => {
+  if(playing){ stopPlay(); return; }
+  if(S.scrub >= V.N - 1) S.scrub = 0;
+  vid.currentTime = frameT(S.scrub); vid.playbackRate = 1;
+  vid.play().then(() => { playing = true; updatePlayer(); loop(); }).catch(() => {});
+  const loop = () => {
+    if(!playing) return;
+    S.scrub = clamp(Math.floor(vid.currentTime*S.fps), 0, V.N - 1);
+    drawStage(); updatePlayer();
+    if(vid.ended || vid.paused){ stopPlay(); return; }
+    playRaf = requestAnimationFrame(loop);
+  };
+});
+function stopPlay(){
+  if(!playing) return;
+  playing = false; cancelAnimationFrame(playRaf); vid.pause();
+  updatePlayer();
+}
+
+function render(){
+  drawStage();
+  if(S.step === "auswerten"){ drawChart(0); drawChart(1); renderTable(); renderFits(); }
+}
+
+/* ================================================================
+   Ereignisse
+   ================================================================ */
+for(const [b, inp] of [["#camBtn","#fileCam"],["#camBtn2","#fileCam"],["#libBtn","#fileLib"],["#libBtn2","#fileLib"]])
+  $(b).addEventListener("click", () => $(inp).click());
+for(const inp of ["#fileCam","#fileLib"]) $(inp).addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; loadVideo(f); });
+document.addEventListener("dragover", e => { if(e.dataTransfer && [...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
+document.addEventListener("drop", e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if(f){ e.preventDefault(); loadVideo(f); } });
+$("#resetBtn").addEventListener("click", () => { if(confirm("Alle Einstellungen und Punkte zu diesem Video löschen?")) resetVideo(); });
+
+$("#fpsN").addEventListener("change", e => {
+  const v = parseNum(e.target.value);
+  if(!(v >= 1 && v <= 1000)){ updatePanels(); return; }
+  if(F && v !== S.fps){
+    if(nMarked() && !confirm("Bei einer anderen Bildrate müssen die Bilder neu übernommen werden; die Punkte gehen verloren. Fortfahren?")){ updatePanels(); return; }
+    F = null; compDirty = true; S.pts = []; dirty();
+    toast("Bildrate geändert – bitte die Bilder neu übernehmen.");
+  }
+  const t0 = S.n0/S.fps, t1 = S.n1/S.fps, ts = S.scrub/S.fps;
+  S.fps = v; S.fpsAuto = false;
+  V.N = Math.max(2, Math.floor(V.dur*S.fps + 1e-6));
+  S.n0 = clamp(Math.round(t0*v), 0, V.N - 1); S.n1 = clamp(Math.round(t1*v), 0, V.N - 1); S.scrub = clamp(Math.round(ts*v), 0, V.N - 1);
+  updatePanels(); drawSteps(); saveLocal();
+});
+$("#fpsN").addEventListener("keydown", e => { if(e.key === "Enter") e.target.blur(); });
+function setSlow(v){ S.slow = v; dirty(); updatePanels(); updatePlayer(); render(); saveLocal(); saveHash(); }
+$("#slowSeg").addEventListener("click", e => { const b = e.target.closest("button"); if(b) setSlow(+b.dataset.slow); });
+$("#slowN").addEventListener("change", e => { const v = parseNum(e.target.value); if(v >= 1 && v <= 100) setSlow(v); else updatePanels(); });
+$("#slowN").addEventListener("keydown", e => { if(e.key === "Enter") e.target.blur(); });
+
+$("#setStart").addEventListener("click", () => { S.n0 = S.scrub; if(S.n1 <= S.n0) S.n1 = V.N - 1; updatePanels(); updatePlayer(); drawStage(); saveLocal(); });
+$("#setEnd").addEventListener("click", () => { S.n1 = S.scrub; if(S.n0 >= S.n1) S.n0 = 0; updatePanels(); updatePlayer(); drawStage(); saveLocal(); });
+$("#extractBtn").addEventListener("click", () => extract());
+
+$("#modeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; S.st.mode = b.dataset.mode; compDirty = true; updatePanels(); render(); saveLocal(); });
+for(const [id, k] of [["#stPts","pts"],["#stNum","num"],["#stAxes","axes"]])
+  $(id).addEventListener("change", e => { S.st[k] = e.target.checked; render(); saveLocal(); });
+
+$("#yUp").addEventListener("change", e => { S.axes.yUp = e.target.checked; dirty(); render(); saveLocal(); });
+$("#axLevel").addEventListener("click", () => { S.axes.ang = 0; dirty(); render(); saveLocal(); });
+$("#axScale").addEventListener("click", () => { const a = S.scale.a, b = S.scale.b; S.axes.ang = Math.atan2(b.y - a.y, b.x - a.x); dirty(); render(); saveLocal(); });
+$("#axFirst").addEventListener("click", () => { const p = S.pts.find(Boolean); if(p){ S.axes.o = {x:p.x, y:p.y}; dirty(); render(); saveLocal(); } });
+
+$("#acceptBtn").addEventListener("click", acceptSug);
+$("#mkPrev").addEventListener("click", () => setCur(S.cur - 1));
+$("#mkNext").addEventListener("click", () => setCur(S.cur + 1));
+$("#mkDel").addEventListener("click", deletePoint);
+$("#mkClear").addEventListener("click", () => { if(nMarked() && !confirm("Alle markierten Punkte löschen?")) return; S.pts = new Array(F.n).fill(null); S.cur = 0; dirty(); afterFrameChange(); saveLocal(); });
+$("#zoomSeg").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; S.zoom = +b.dataset.z; updatePanels(); render(); });
+$("#showSug").addEventListener("change", e => { S.showSug = e.target.checked; updateSuggestion(); updatePanels(); render(); });
+$("#showTrail").addEventListener("change", e => { S.showTrail = e.target.checked; render(); });
+
+$("#dqSeg").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; S.dq = +b.dataset.dq; dirty(); updatePanels(); render(); saveHash(); saveLocal(); });
+$("#optPredict").addEventListener("change", e => { S.predict = e.target.checked; S.revealed = false; S.pred = [[],[]]; updatePanels(); render(); saveHash(); });
+for(const ci of [0,1]){
+  $("#q" + ci).innerHTML = Object.entries(QS).map(([k,q]) => `<option value="${k}">${q.opt}</option>`).join("");
+  $("#q" + ci).addEventListener("change", e => { const c = S.ch[ci]; c.q = e.target.value; c.h = null; S.pred[ci] = []; charts[ci] = null; render(); saveHash(); saveLocal(); });
+  $(`[data-fitseg="${ci}"]`).addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; const c = S.ch[ci]; c.fit = b.dataset.fit; c.h = null; updatePanels(); render(); saveHash(); saveLocal(); });
+}
+
+document.addEventListener("keydown", e => {
+  if(e.target.closest("input,select,textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+  if(!V || S.step === "video") return;
+  if(e.key === "ArrowLeft"){ e.preventDefault(); stepFrame(-1); }
+  else if(e.key === "ArrowRight"){ e.preventDefault(); stepFrame(1); }
+  else if(e.key === "Enter" && S.step === "markieren"){ e.preventDefault(); acceptSug(); }
+  else if((e.key === "Delete" || e.key === "Backspace") && S.step === "markieren"){ e.preventDefault(); deletePoint(); }
+});
+
+/* ================================================================
+   Sichern: PNG, CSV, PDF
+   ================================================================ */
+function dataUrlToBlob(url){
+  const [head, b64] = url.split(","), bin = atob(b64), arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: head.match(/:(.*?);/)[1]});
+}
+async function saveBlob(blob, name){
+  const file = new File([blob], name, {type: blob.type});
+  if(coarse() && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:name}); return; }
+    catch(e){ if(e && e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+}
+const baseName = () => (V ? V.name.replace(/\.[^.]+$/, "") : "video").replace(/[^\wäöüÄÖÜß-]+/g, "_");
+function exportCanvas(){
+  ensureComposite();
+  const cv = document.createElement("canvas"); cv.width = F.fw; cv.height = F.fh;
+  const ctx = cv.getContext("2d"); ctx.drawImage(compCv, 0, 0);
+  const T2 = {s:F.sc, ox:0, oy:0}, u = Math.max(1, F.fw/760);
+  if(S.st.axes){ drawScale(ctx, T2, u, false); drawAxes(ctx, T2, u, false); }
+  if(S.st.pts) drawPoints(ctx, T2, u, {num:S.st.num});
+  return cv;
+}
+function savePng(){
+  if(!F) return;
+  const url = exportCanvas().toDataURL("image/png");
+  saveBlob(dataUrlToBlob(url), `stroboskop_${baseName()}.png`);
+}
+$("#pngBtn").addEventListener("click", savePng);
+$("#png2Btn").addEventListener("click", savePng);
+$("#csvBtn").addEventListener("click", () => {
+  const P = series(), n = (v, d) => v == null ? "" : v.toFixed(d).replace(".", ",");
+  let s = `Stroboskop-Analyse;${V.name}\nBildrate in 1/s;${n(S.fps,2)};Zeitlupenfaktor;${n(S.slow,2)};Delta t in s;${n(dtFrame(),5)}\n`;
+  s += `Massstab;${n(S.scale.len,3)} m entsprechen ${Math.round(Math.hypot(S.scale.b.x-S.scale.a.x, S.scale.b.y-S.scale.a.y))} Bildpunkten;y-Achse;${S.axes.yUp ? "nach oben" : "nach unten"}\n\n`;
+  s += "Bild;t in s;x in m;y in m;vx in m/s;vy in m/s;v in m/s;ax in m/s²;ay in m/s²\n";
+  for(const p of P) s += [p.i+1, n(p.t,4), n(p.x,4), n(p.y,4), n(p.vx,4), n(p.vy,4), n(p.v,4), n(p.ax,3), n(p.ay,3)].join(";") + "\n";
+  saveBlob(new Blob(["﻿" + s], {type:"text/csv"}), `messwerte_${baseName()}.csv`);
+});
+
+function chartImage(ci){
+  const cv = document.createElement("canvas");
+  cv.style.cssText = "position:absolute;left:-10000px;top:0;width:760px;height:400px";
+  document.body.appendChild(cv);
+  drawChart(ci, cv, {print:true});
+  const url = cv.toDataURL("image/png"); cv.remove();
+  return url;
+}
+function buildPrint(){
+  const name = $("#pdfName").value.trim();
+  document.documentElement.classList.add("forcelight");
+  const strobe = exportCanvas().toDataURL("image/jpeg", 0.9);
+  const P = series(), q = (v,d) => v == null ? "–" : fmt(v,d);
+  let h = `<h1>Stroboskop-Analyse – meine Ergebnisse</h1>
+    <p class="meta">${name ? "<b>Name:</b> " + esc(name) + " · " : ""}<b>Datum:</b> ${new Date().toLocaleDateString("de-DE")} · Video: ${esc(V.name)}</p>
+    <h2>1 Aufnahme</h2>
+    <table><tr><th>Bildrate</th><th>Zeitlupenfaktor</th><th>Δt zwischen zwei Bildern</th><th>Anzahl Bilder</th><th>Maßstab</th></tr>
+    <tr><td>${fmt(S.fps, S.fps % 1 ? 2 : 0)} Bilder/s</td><td>${fmt(S.slow, S.slow % 1 ? 1 : 0)}</td><td>${fs(dtFrame())} s</td><td>${F.n} (markiert: ${nMarked()})</td><td>${fmt(S.scale.len,2)} m ≙ ${fmt(Math.hypot(S.scale.b.x-S.scale.a.x, S.scale.b.y-S.scale.a.y),0)} Bildpunkte${S.scaleSet ? "" : " (nicht eingestellt!)"}</td></tr></table>
+    <h2>2 Stroboskopbild</h2><img class="strobe" src="${strobe}" alt="Stroboskopbild">
+    <h2>3 Diagramme</h2><div class="pgrid">`;
+  for(const ci of [0,1]){
+    h += `<div><p><b>${esc(QS[S.ch[ci].q].opt)}</b></p><img src="${chartImage(ci)}" alt="">`;
+    const ft = fitText(ci); if(ft) h += `<p>${ft.replace(/<span class="q">|<\/span>/g, "")}</p>`;
+    if(S.predict && S.pred[ci].length) h += `<p class="meta">Gestrichelt: meine Vorhersage.</p>`;
+    h += `</div>`;
+  }
+  h += `</div><h2>4 Messwerte</h2><table><tr><th>Bild</th><th>t in s</th><th>x in m</th><th>y in m</th><th>v<sub>x</sub> in m/s</th><th>v<sub>y</sub> in m/s</th><th>v in m/s</th><th>a<sub>x</sub> in m/s²</th><th>a<sub>y</sub> in m/s²</th></tr>`;
+  for(const p of P) h += `<tr><td>${p.i+1}</td><td>${q(p.t,3)}</td><td>${q(p.x,3)}</td><td>${q(p.y,3)}</td><td>${q(p.vx,2)}</td><td>${q(p.vy,2)}</td><td>${q(p.v,2)}</td><td>${q(p.ax,1)}</td><td>${q(p.ay,1)}</td></tr>`;
+  h += `</table><p class="meta">Geschwindigkeit aus den Nachbarpunkten (± ${S.dq} Bild${S.dq > 1 ? "er" : ""}); y-Achse ${S.axes.yUp ? "nach oben" : "nach unten"}.</p>`;
+  document.documentElement.classList.remove("forcelight");
+  $("#printout").innerHTML = h;
+  render();
+}
+function openPdf(){ if(!F || nMarked() < 2){ toast("Markiere zuerst mindestens zwei Punkte."); return; } $("#pdfModal").hidden = false; setTimeout(() => $("#pdfName").focus(), 50); }
+$("#pdfBtn").addEventListener("click", openPdf);
+$("#pdf2Btn").addEventListener("click", openPdf);
+$("#pdfCancel").addEventListener("click", () => { $("#pdfModal").hidden = true; });
+$("#pdfModal").addEventListener("click", e => { if(e.target.id === "pdfModal") $("#pdfModal").hidden = true; });
+$("#pdfGo").addEventListener("click", () => {
+  try{ localStorage.setItem("stroboskop:name", $("#pdfName").value.trim()); }catch(e){}
+  buildPrint(); $("#pdfModal").hidden = true;
+  const imgs = $$("#printout img");
+  Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(() => window.print(), 80));
+});
+try{ $("#pdfName").value = localStorage.getItem("stroboskop:name") || ""; }catch(e){}
+
+$("#shareBtn").addEventListener("click", shareLink);
+(() => {
+  const el = document.documentElement, btn = $("#fsBtn");
+  const can = !!(el.requestFullscreen || el.webkitRequestFullscreen) && !(navigator.standalone || matchMedia("(display-mode: standalone)").matches);
+  if(!can){ btn.hidden = true; return; }
+  const inFS = () => document.fullscreenElement || document.webkitFullscreenElement;
+  btn.addEventListener("click", () => {
+    if(inFS()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  });
+  const upd = () => { btn.textContent = inFS() ? "✕ Vollbild beenden" : "⛶ Vollbild"; setTimeout(() => { layoutStage(); render(); }, 120); };
+  document.addEventListener("fullscreenchange", upd); document.addEventListener("webkitfullscreenchange", upd);
+})();
+
+let rT;
+new ResizeObserver(() => { cancelAnimationFrame(rT); rT = requestAnimationFrame(() => { layoutStage(); render(); }); }).observe(document.body);
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => render());
+window.addEventListener("beforeunload", e => { if(F && nMarked()){ saveLocal(); } });
+
+buildFields();
+loadHash();
+go("video");
+</script>
+</body>
+</html>
