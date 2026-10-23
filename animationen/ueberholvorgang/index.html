@@ -257,8 +257,10 @@ footer{max-width:1500px;margin:0 auto;padding:0 20px 30px;color:var(--muted);fon
         <span class="time" id="tlabel">t = 0,0 s</span>
         <label class="small muted">Tempo
           <select id="speed">
+            <option value="auto" selected>Auto</option>
             <option value="0.25">0,25×</option><option value="0.5">0,5×</option>
-            <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+            <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
+            <option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="64">64×</option>
           </select>
         </label>
       </div>
@@ -311,7 +313,7 @@ footer{max-width:1500px;margin:0 auto;padding:0 20px 30px;color:var(--muted);fon
    einstellbar sind nur Startort und Geschwindigkeit.
    ================================================================ */
 const SIMPLE = new URLSearchParams(location.search).get("modus") === "einfach";
-const TMAX = 180;      // längster betrachteter Zeitraum in s
+const TMAX = 7200;     // längster betrachteter Zeitraum in s (2 Stunden)
 const TAU  = 1.5;      // Dauer eines Spurwechsels (nur Darstellung) in s
 
 const PRESETS = SIMPLE ? [
@@ -337,8 +339,11 @@ const S = {
   A:{}, B:{}, C:{},
   showMarkers:true, showZones:true, liveDraw:true,
   predict:false, revealed:false,
-  t:0, playing:false, speed:1, preset:"lkw"
+  t:0, playing:false, speed:"auto", preset:"lkw"
 };
+// „Auto“: Echtzeit, solange der Vorgang höchstens 40 s dauert – sonst so schnell, dass er in etwa 40 s abläuft.
+function autoSpeed(){ return [1,2,4,8,16,32,64,128].find(s => M.T/s <= 40) || 128; }
+const speedNow = () => S.speed === "auto" ? autoSpeed() : S.speed;
 let M = {};   // berechnetes Modell (Zeitpunkte usw.)
 
 /* ================================================================
@@ -379,13 +384,17 @@ const gStart = t => (pos(S.B,t) - S.B.L) - pos(S.A,t) - dSafe(vel(S.A,t));
 // Lücke zwischen Heck A und Front B minus Sicherheitsabstand von B ( ≥ 0 → Ende )
 const gEnd   = t => (pos(S.A,t) - S.A.L) - pos(S.B,t) - dSafe(vel(S.B,t));
 
-function firstTime(test, t0, t1, dt=0.01){
+// Schrittweite wächst mit der Zeit, damit auch sehr lange Überholvorgänge schnell gefunden werden;
+// das genaue Ergebnis liefert anschließend die Intervallhalbierung.
+const stepAt = (t, dt0) => t < 120 ? dt0 : t < 1200 ? dt0*5 : dt0*20;
+function firstTime(test, t0, t1, dt0=0.01){
   if(test(t0)) return t0;
-  let prev = t0;
-  for(let t = t0+dt; t <= t1+1e-9; t += dt){
+  let prev = t0, t = t0;
+  while(t < t1){
+    t = Math.min(t1, t + stepAt(t, dt0));
     if(test(t)){
       let lo = prev, hi = t;
-      for(let i=0;i<40;i++){ const mid=(lo+hi)/2; if(test(mid)) hi=mid; else lo=mid; }
+      for(let i=0;i<50;i++){ const mid=(lo+hi)/2; if(test(mid)) hi=mid; else lo=mid; }
       return hi;
     }
     prev = t;
@@ -410,21 +419,18 @@ function computeModel(){
     if(M.ts === 0) M.immediate = true;
     if(M.ts != null) M.te = firstTime(t => gEnd(t) >= 0, M.ts, TMAX);
   }
-  if(M.te != null)      M.T = Math.min(TMAX, M.te + Math.max(4, 0.25*M.te));
-  else if(M.ts != null) M.T = Math.min(TMAX, Math.max(40, M.ts + 40));
+  if(M.te != null)      M.T = M.te + clamp(0.25*M.te, 4, 60);
+  else if(M.ts != null) M.T = Math.max(40, M.ts + 40);
   else                  M.T = 40;
 
   if(C.on && M.ts != null){
     const tEndCheck = M.T;
-    M.tc = firstTime(t => {
-      if(lat(t) <= 0.35) return false;
-      const xa = pos(A,t), xc = posC(t);
-      return xa >= xc && (xa - A.L) <= xc + C.L;
-    }, M.ts, tEndCheck, 0.005);
+    // Kollision: A ist auf der Gegenfahrbahn und seine Front hat die Front von C erreicht
+    M.tc = firstTime(t => lat(t) > 0.35 && pos(A,t) >= posC(t), M.ts, tEndCheck, 0.005);
     if(M.tc != null){ M.T = M.tc; }
     else {
       let best = Infinity, bestT = null;
-      for(let t=M.ts; t<=tEndCheck; t+=0.01){
+      for(let t=M.ts; t<=tEndCheck; t+=stepAt(t, 0.01)){
         if(lat(t) <= 0.35) continue;
         const g = posC(t) - pos(A,t);
         if(g >= 0 && g < best){ best = g; bestT = t; }
@@ -932,15 +938,16 @@ function renderStatic(){
   let h = "", hasStats = false;
   if(M.msg){ h = `<div class="note">${M.msg}</div>`; }
   else if(M.ts == null){
-    h = `<div class="note">Im betrachteten Zeitraum (bis ${TMAX} s) kommt Fahrzeug A nicht bis auf den Sicherheitsabstand an Fahrzeug B heran – es findet kein Überholvorgang statt. ${SIMPLE ? "Fahrzeug A muss schneller fahren als Fahrzeug B." : "Ist A schneller als B?"}</div>`;
+    h = `<div class="note">Auch nach 2 Stunden kommt Fahrzeug A nicht bis auf den Sicherheitsabstand an Fahrzeug B heran – es findet kein Überholvorgang statt. ${SIMPLE ? "Fahrzeug A muss schneller fahren als Fahrzeug B." : "Ist A schneller als B?"}</div>`;
   } else {
     hasStats = true;
     h += `<div class="stats">`;
     h += stat("Beginn des Überholvorgangs", "t = "+fmt(M.ts,1)+" s", "Ort von A: x = "+fmt(pos(A,M.ts),0)+" m", "start");
     if(M.te != null){
       h += stat("Ende des Überholvorgangs", "t = "+fmt(M.te,1)+" s", "Ort von A: x = "+fmt(pos(A,M.te),0)+" m", "end");
-      h += stat("Überholdauer Δt", fmt(M.te-M.ts,1)+" s", "Δt = t<sub>Ende</sub> − t<sub>Beginn</sub>");
-      h += stat("Überholweg von A", fmt(pos(A,M.te)-pos(A,M.ts),0)+" m", "Strecke, die A in Δt zurücklegt");
+      const dur = M.te-M.ts, way = pos(A,M.te)-pos(A,M.ts);
+      h += stat("Überholdauer Δt", fmt(dur,1)+" s", "Δt = t<sub>Ende</sub> − t<sub>Beginn</sub>" + (dur >= 120 ? ` (≈ ${fmt(dur/60,1)} min)` : ""));
+      h += stat("Überholweg von A", fmt(way,0)+" m", "Strecke, die A in Δt zurücklegt" + (way >= 2000 ? ` (≈ ${fmt(way/1000,1)} km)` : ""));
       h += stat("Weg von B in dieser Zeit", fmt(pos(B,M.te)-pos(B,M.ts),0)+" m", "");
       if(SIMPLE){
         const dv = A.v0 - B.v0;
@@ -949,7 +956,7 @@ function renderStatic(){
         h += stat("Geschwindigkeit von A", fmt(vF(vel(A,M.ts)), S.unit==="kmh"?0:1)+" → "+fv(vel(A,M.te)), "bei Beginn → bei Ende");
       }
     } else {
-      h += stat("Ende des Überholvorgangs", "–", M.tc!=null ? "wegen der Kollision nicht erreicht" : "wird im betrachteten Zeitraum nicht erreicht", "end");
+      h += stat("Ende des Überholvorgangs", "–", M.tc!=null ? "wegen der Kollision nicht erreicht" : "wird auch nach 2 Stunden nicht erreicht – A ist nicht dauerhaft schneller als B", "end");
     }
     if(C.on){
       if(M.tc != null) h += stat("Gegenverkehr", "Kollision!", "bei t = "+fmt(M.tc,1)+" s, x = "+fmt(pos(A,M.tc),0)+" m", "bad");
@@ -1015,6 +1022,8 @@ function renderLive(){
   else { ph.classList.add("done"); pt.textContent = "Überholvorgang beendet"; }
 
   $("#tlabel").textContent = "t = " + fmt(t,1) + " s";
+  const ao = $('#speed option[value="auto"]'), al = "Auto (" + fmt(autoSpeed(),0) + "×)";
+  if(ao.textContent !== al) ao.textContent = al;
   const ts = $("#tslider"); ts.value = Math.round(t/M.T*1000); setFill(ts);
   $("#play").textContent = S.playing ? "❚❚ Pause" : (t >= M.T - 1e-6 ? "▶ Nochmal" : "▶ Start");
 }
@@ -1029,7 +1038,7 @@ function frame(ts){
   if(S.playing){
     if(lastTs != null){
       const dt = Math.min(0.1, (ts - lastTs)/1000);
-      S.t += dt*S.speed;
+      S.t += dt*speedNow();
       if(S.t >= M.T){ S.t = M.T; S.playing = false; }
     }
     lastTs = ts;
@@ -1044,7 +1053,7 @@ function togglePlay(){
 $("#play").addEventListener("click", togglePlay);
 $("#reset").addEventListener("click", () => { S.playing=false; S.t=0; render(); });
 $("#tslider").addEventListener("input", e => { S.playing=false; S.t = e.target.value/1000*M.T; render(); });
-$("#speed").addEventListener("change", e => { S.speed = parseFloat(e.target.value); });
+$("#speed").addEventListener("change", e => { S.speed = e.target.value === "auto" ? "auto" : parseFloat(e.target.value); });
 document.addEventListener("keydown", e => {
   if(e.code==="Space" && !/INPUT|SELECT|BUTTON|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); togglePlay(); }
 });
