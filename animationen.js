@@ -5,6 +5,19 @@
 */
 window.ANIMATIONEN = [
   {
+    id: "zentripetalkraft",
+    titel: "Die Zentripetalkraft",
+    beschreibung: "Geometrische Herleitung von F = m·v²/r = m·ω²·r Schritt für Schritt, Experiment mit Drehteller und Smartphone-Sensor, Messunsicherheit (Median, Erweiterungsfaktor k), Auswertung im ω²- bzw. v²-Diagramm und Übungen mit Multiple Choice, Puzzles und Rechenaufgaben.",
+    jahrgangsstufe: "11",
+    themenbereich: "Mechanik",
+    niveau: "Erarbeitung",
+    lernbereich: "Ph11 LB 1: Kreisbewegung",
+    stichworte: ["Zentripetalkraft", "Zentripetalbeschleunigung", "Kreisbewegung", "Winkelgeschwindigkeit", "Messunsicherheit", "Median", "Linearisierung", "Quiz"],
+    pfad: "animationen/zentripetalkraft/",
+    vorschau: "animationen/zentripetalkraft/vorschau.png",
+    hinzugefuegt: "2026-10-23"
+  },
+  {
     id: "ueberholvorgang-einfach",
     titel: "Überholen bei konstanter Geschwindigkeit",
     beschreibung: "Einstieg: Zwei Fahrzeuge fahren mit konstanter Geschwindigkeit. Nur Startort und Geschwindigkeit werden eingestellt – wie verändern sich Überholdauer, Überholweg und das Zeit-Ort-Diagramm?",

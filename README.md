@@ -22,6 +22,7 @@ aktualisiert die Seite danach automatisch (dauert etwa eine Minute).
 
 | Animation | Jgst. | Lernbereich |
 |---|---|---|
+| [Die Zentripetalkraft](animationen/zentripetalkraft/) (Herleitung, Experiment, Übungen) | 11 | Ph11 LB 1: Kreisbewegung |
 | [Überholen bei konstanter Geschwindigkeit](animationen/ueberholvorgang/?modus=einfach) (Einstieg) | 10 | Ph10 LB 3: Bewegungen und ihre Modellierung |
 | [Der Überholvorgang](animationen/ueberholvorgang/) (Vertiefung) | 10 | Ph10 LB 3: Bewegungen und ihre Modellierung |
 
