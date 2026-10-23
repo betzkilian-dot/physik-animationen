@@ -7,7 +7,7 @@ window.ANIMATIONEN = [
   {
     id: "zentripetalkraft",
     titel: "Die Zentripetalkraft",
-    beschreibung: "Geometrische Herleitung von F = m·v²/r = m·ω²·r Schritt für Schritt, Experiment mit Drehteller und Smartphone-Sensor, Messunsicherheit (Median, Erweiterungsfaktor k), Auswertung im ω²- bzw. v²-Diagramm und Übungen mit Multiple Choice, Puzzles und Rechenaufgaben.",
+    beschreibung: "Geometrische Herleitung von F = m·v²/r = m·ω²·r Schritt für Schritt, Experiment mit Drehteller und Smartphone-Sensor, Messunsicherheit (Mittelwert und Median), Auswertung im ω²- bzw. v²-Diagramm und Übungen mit Multiple Choice, Puzzles und Rechenaufgaben.",
     jahrgangsstufe: "11",
     themenbereich: "Mechanik",
     niveau: "Erarbeitung",

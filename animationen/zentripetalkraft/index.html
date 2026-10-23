@@ -144,7 +144,6 @@ input.ans{width:110px;text-align:right;font:inherit;font-size:16px;padding:7px 9
 #cvX{height:330px;touch-action:pan-y}
 #cvXlive{height:170px;touch-action:pan-y}
 #cvU{height:190px;touch-action:pan-y;cursor:pointer}
-#cvHist{height:260px;touch-action:pan-y}
 .cvA{height:330px;touch-action:pan-y}
 @media (max-height:900px) and (min-width:900px){
   #cvE{height:min(420px,calc(100vh - 170px))}
@@ -475,11 +474,6 @@ html.forcelight{
         <label class="check"><input type="checkbox" id="uOutlier" checked> <span>Ausreißer einbauen (Handy wurde angestoßen)</span></label>
         <label class="check"><input type="checkbox" id="uTrue"> <span>„Wahren Wert“ einblenden <span class="muted">(im echten Experiment unbekannt!)</span></span></label>
         <div class="btnrow"><button class="btn primary" id="uNew" style="flex:1">↻ Neue Messreihe</button></div>
-        <div class="row">
-          <span class="lbl">Erweiterungsfaktor <i>k</i></span>
-          <div class="seg kSeg"><button data-v="1">k = 1</button><button data-v="2">k = 2</button><button data-v="3">k = 3</button></div>
-          <div class="small muted kText" style="margin-top:5px"></div>
-        </div>
         <label class="check"><input type="checkbox" class="optPredict"> <span><b>Vorhersage-Modus:</b> Kennwerte zuerst verdecken, damit selbst gerechnet wird</span></label>
       </div>
     </aside>
@@ -507,17 +501,6 @@ html.forcelight{
           <summary>So werden die Kennwerte berechnet</summary>
           <div class="solbody" id="uHow"></div>
         </details>
-      </div>
-      <div class="card">
-        <h2>Animation: Was bedeutet der Erweiterungsfaktor <i>k</i>?</h2>
-        <p class="small muted" style="margin-top:0">Wiederholt man eine Messung sehr oft, häufen sich die Werte um den Mittelwert. Wie viele Werte liegen im Bereich <i>x̄</i> ± <i>k</i> · <i>s</i>?</p>
-        <canvas id="cvHist" aria-label="Häufigkeitsverteilung vieler Messwerte"></canvas>
-        <div class="btnrow">
-          <button class="btn primary" id="hiRun" style="min-width:150px">▶ Messen lassen</button>
-          <button class="btn" id="hiAdd">+ 100 Messungen</button>
-          <button class="btn" id="hiReset">↺ Zurücksetzen</button>
-        </div>
-        <div class="stats" id="hiStats" style="margin-top:10px"></div>
       </div>
       <div class="card">
         <h2>Ursachen und Verringerung von Messunsicherheiten</h2>
@@ -553,10 +536,7 @@ html.forcelight{
           <span class="lbl">Aus den 5 Einzelwerten verwenden</span>
           <div class="seg" id="aAvgSeg"><button data-v="median">Median</button><button data-v="mean">Mittelwert</button></div>
         </div>
-        <label class="check"><input type="checkbox" id="aErr" checked> <span>Unsicherheitsbalken ± <i>k</i> · <i>u</i> zeigen</span></label>
-        <div class="row" style="margin-top:2px">
-          <div class="seg kSeg"><button data-v="1">k = 1</button><button data-v="2">k = 2</button><button data-v="3">k = 3</button></div>
-        </div>
+        <label class="check"><input type="checkbox" id="aErr" checked> <span>Streubereich der 5 Einzelwerte zeigen (kleinster bis größter Wert)</span></label>
         <label class="check"><input type="checkbox" id="aFree"> <span>Ausgleichsgerade auch ohne Ursprungszwang (<i>y</i> = <i>c</i> · <i>x</i> + <i>b</i>)</span></label>
         <label class="check"><input type="checkbox" class="optPredict"> <span><b>Vorhersage-Modus:</b> Quotienten zuerst verdecken</span></label>
         <div class="note warn" id="aNoData" hidden></div>
@@ -652,13 +632,12 @@ function seeded(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = M
 const median = arr => { const a = [...arr].sort((x,y)=>x-y), n = a.length; if(!n) return NaN; return n%2 ? a[(n-1)/2] : (a[n/2-1]+a[n/2])/2; };
 const mean = arr => arr.length ? arr.reduce((s,x)=>s+x,0)/arr.length : NaN;
 const sdev = arr => { const n = arr.length; if(n < 2) return NaN; const m = mean(arr); return Math.sqrt(arr.reduce((s,x)=>s+(x-m)*(x-m),0)/(n-1)); };
-const KLEVEL = {1:"68,3 %", 2:"95,4 %", 3:"99,7 %"};
 
 /* ================================================================
    Zustand
    ================================================================ */
 const S = {
-  tab:"einstieg", predict:false, revealed:{u:false, a:false}, k:2, allSteps:false,
+  tab:"einstieg", predict:false, revealed:{u:false, a:false}, allSteps:false,
   e:{m:0.5, r:0.60, w:2.0, showV:true, trail:false, playing:true, speed:1, cut:false, phi:0.6, cutT:0, cutPos:null, cutVel:null, trailPts:[]},
   hyp:{m:null, w:null, r:null},
   h:{unlocked:1, open:1, dphi:40, ans:{}, shifted:false, shiftAnim:0, phi:0},
@@ -677,7 +656,7 @@ function persist(){
     try{
       localStorage.setItem(STORE, JSON.stringify({
         hyp:S.hyp, h:{unlocked:S.h.unlocked, ans:S.h.ans},
-        x:{rows:S.x.rows, offset:S.x.offset}, k:S.k,
+        x:{rows:S.x.rows, offset:S.x.offset},
         a:{found:S.a.found, avg:S.a.avg, tries:S.a.tries},
         q:{mc:S.q.mc, order:S.q.order, orderDone:S.q.orderDone, orderTries:S.q.orderTries, form:S.q.form, match:S.q.match, matchDone:S.q.matchDone, calc:S.q.calc},
         name: $("#pdfName").value || ""
@@ -691,7 +670,6 @@ function restore(){
     if(d.hyp) Object.assign(S.hyp, d.hyp);
     if(d.h){ S.h.unlocked = clamp(d.h.unlocked|0, 1, 6); S.h.open = Math.min(S.h.unlocked, 5); S.h.ans = d.h.ans || {}; }
     if(d.x && d.x.rows){ for(const k of ["1","2"]) if(Array.isArray(d.x.rows[k])) S.x.rows[k] = d.x.rows[k].filter(r => r && isFinite(r.r) && isFinite(r.w) && Array.isArray(r.a)); S.x.offset = !!d.x.offset; }
-    if([1,2,3].includes(d.k)) S.k = d.k;
     if(d.a){ Object.assign(S.a.found, d.a.found||{}); if(d.a.avg) S.a.avg = d.a.avg; Object.assign(S.a.tries, d.a.tries||{}); }
     if(d.q) Object.assign(S.q, d.q);
     if(d.name) $("#pdfName").value = d.name;
@@ -1631,64 +1609,45 @@ function buildU(){
       renderU();
     }
   });
-  // Histogramm
-  $("#hiRun").addEventListener("click", () => { HI.running = !HI.running; renderHist(); });
-  $("#hiAdd").addEventListener("click", () => { addHist(100); renderHist(); });
-  $("#hiReset").addEventListener("click", () => { HI.vals = []; HI.running = false; renderHist(); });
 }
 function uStats(){
   const used = S.u.vals.filter((v,i) => !S.u.excl[i]);
-  const n = used.length, m = mean(used), md = median(used), s = sdev(used), u = s/Math.sqrt(n);
-  return {used, n, m, md, s, u, min:Math.min(...used), max:Math.max(...used)};
-}
-// Ergebnis runden: Unsicherheit auf 2 signifikante Stellen, Messwert auf dieselbe Stelle
-function roundResult(x, U){
-  if(!(U > 0)) return {x:fmt(x,2), U:"–", d:2};
-  const d = Math.max(0, 1 - Math.floor(Math.log10(U)));
-  return {x:fmt(x, d), U:fmt(U, d), d};
+  const n = used.length, m = mean(used), md = median(used);
+  return {used, n, m, md, min:Math.min(...used), max:Math.max(...used)};
 }
 function renderU(){
-  refreshGroup("u"); segSync("#uSpreadSeg", () => S.u.spread); segSync(".kSeg", () => S.k);
-  for(const t of $$(".kText")) t.innerHTML = kTextHTML();
+  refreshGroup("u"); segSync("#uSpreadSeg", () => S.u.spread);
   $("#uOutlier").checked = S.u.outlier; $("#uTrue").checked = S.u.showTrue;
   const st = uStats();
   // Werte-Tabelle (in Messreihenfolge)
   let h = `<thead><tr><th>Nr.</th>${S.u.vals.map((_,i) => `<th>${i+1}</th>`).join("")}</tr></thead><tbody><tr><td><i>a</i> in m/s²</td>${S.u.vals.map((v,i) => `<td style="${S.u.excl[i]?"text-decoration:line-through;color:var(--muted)":""}">${fmt(v,2)}</td>`).join("")}</tr></tbody>`;
   $("#uTable").innerHTML = h;
-  const k = S.k, U = k*st.u, R = roundResult(st.m, U);
   const sv = (k_,v,d,cls="") => `<div class="stat ${cls}"><div class="k">${k_}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`;
+  const diff = st.m - st.md;
   $("#uStats").innerHTML =
     sv("Anzahl verwendet <i>n</i>", st.n) +
-    sv("Mittelwert <i>x̄</i>", fmt(st.m,3)+" m/s²", "", "hl") +
-    sv("Median <i>x̃</i>", fmt(st.md,3)+" m/s²", "mittlerer Wert der geordneten Liste", "hl") +
-    sv("Spannweite", fmt(st.max - st.min,2)+" m/s²", `${fmt(st.min,2)} … ${fmt(st.max,2)}`) +
-    sv("Standardabweichung <i>s</i>", fmt(st.s,3)+" m/s²", "Streuung der Einzelwerte") +
-    sv("Standardunsicherheit <i>u</i>", fmt(st.u,3)+" m/s²", "des Mittelwerts: <i>u</i> = <i>s</i>/√<i>n</i>");
-  const diff = Math.abs(st.m - st.md);
+    sv("Mittelwert <i>x̄</i>", fmt(st.m,2)+" m/s²", "Summe aller Werte geteilt durch <i>n</i>", "hl") +
+    sv("Median <i>x̃</i>", fmt(st.md,2)+" m/s²", "mittlerer Wert der geordneten Liste", "hl") +
+    sv("Unterschied <i>x̄</i> − <i>x̃</i>", (diff >= 0 ? "+" : "−") + fmt(Math.abs(diff),2)+" m/s²", "") +
+    sv("Spannweite", fmt(st.max - st.min,2)+" m/s²", `kleinster … größter Wert: ${fmt(st.min,2)} … ${fmt(st.max,2)}`);
   let note = "";
   const hasOut = S.u.outlier && S.u.vals.some((v,i) => !S.u.excl[i] && v > U_A0*1.25);
-  if(hasOut) note = `<div class="note warn">Ein <b>Ausreißer</b> ist in der Auswertung. Er zieht den Mittelwert um ${fmt(diff,3)} m/s² vom Median weg und vergrößert <i>s</i> deutlich. Der <b>Median</b> ist dagegen <b>robust</b>: Er ist der mittlere Wert der geordneten Liste – wie weit die äußersten Werte entfernt liegen, spielt keine Rolle. Tippe auf den Ausreißer, um ihn auszuschließen – aber nur mit Begründung (z. B. „Handy wurde angestoßen“)!</div>`;
-  else if(S.u.outlier) note = `<div class="note good">Der Ausreißer ist ausgeschlossen. Mittelwert und Median liegen jetzt nah beieinander, und <i>s</i> ist kleiner geworden.</div>`;
-  $("#uResult").innerHTML = `<div class="note info" style="margin-top:10px"><b>Messergebnis</b> (k = ${k}, Vertrauensniveau ≈ ${KLEVEL[k]}):
-      <div class="eq big" style="margin:6px 0 2px"><i>a</i> = (${R.x} ± ${R.U}) m/s²</div>
-      <span class="small muted">mit erweiterter Unsicherheit <i>U</i> = <i>k</i> · <i>u</i> = ${k} · ${fmt(st.u,3)} m/s² = ${fmt(U,3)} m/s²; gerundet auf zwei geltende Ziffern.${S.u.showTrue ? ` Der „wahre Wert“ ${fmt(U_A0,2)} m/s² liegt ${Math.abs(st.m - U_A0) <= U ? "<b>innerhalb</b>" : "<b>außerhalb</b>"} dieses Intervalls.` : ""}</span></div>` + note;
+  if(hasOut) note = `<div class="note warn">Ein <b>Ausreißer</b> ist in der Auswertung. Er zieht den <b>Mittelwert</b> um ${fmt(Math.abs(diff),2)} m/s² vom Median weg und vergrößert die Spannweite deutlich. Der <b>Median</b> ist dagegen <b>robust</b>: Er ist der mittlere Wert der geordneten Liste – wie weit die äußersten Werte entfernt liegen, spielt keine Rolle. Deshalb ist bei Ausreißern der Median das bessere Ergebnis.<br>Tippe auf den Ausreißer, um ihn auszuschließen – aber nur mit Begründung (z. B. „Handy wurde angestoßen“)!</div>`;
+  else if(S.u.outlier) note = `<div class="note good">Der Ausreißer ist ausgeschlossen. Mittelwert und Median liegen jetzt nah beieinander, und die Spannweite ist kleiner geworden.</div>`;
+  else note = `<div class="note good">Ohne Ausreißer liegen Mittelwert und Median nah beieinander – beide sind ein gutes Messergebnis.</div>`;
+  const best = hasOut ? st.md : st.m;
+  $("#uResult").innerHTML = `<div class="note info" style="margin-top:10px"><b>Messergebnis</b> (${hasOut ? "Median, wegen des Ausreißers" : "Mittelwert"}):
+      <div class="eq big" style="margin:6px 0 2px"><i>a</i> ≈ ${fmt(best,2)} m/s²</div>
+      <span class="small muted">Die Einzelwerte streuen zwischen ${fmt(st.min,2)} m/s² und ${fmt(st.max,2)} m/s².${S.u.showTrue ? ` Der „wahre Wert“ ist ${fmt(U_A0,2)} m/s²: Der Mittelwert weicht um ${fmt(Math.abs(st.m - U_A0),2)} m/s² ab, der Median um ${fmt(Math.abs(st.md - U_A0),2)} m/s².` : ""}</span></div>` + note;
   $("#uStatwrap").classList.toggle("hidden", S.predict && !S.revealed.u);
-  $("#uBadgeText").textContent = `n = ${st.n} · k = ${k}`;
+  $("#uBadgeText").textContent = `n = ${st.n}`;
   $("#uHow").innerHTML = `
     <p><b>Mittelwert:</b> <span class="ieq"><i>x̄</i> = ${F("<i>x</i><sub>1</sub> + <i>x</i><sub>2</sub> + … + <i>x</i><sub><i>n</i></sub>","<i>n</i>")}</span></p>
     <p><b>Median:</b> Werte der Größe nach ordnen. Bei ungerader Anzahl ist der Median der mittlere Wert, bei gerader Anzahl der Mittelwert der beiden mittleren Werte.<br>
     <span class="small muted">Geordnet: ${[...st.used].sort((a,b)=>a-b).map(v => fmt(v,2)).join("; ")}</span></p>
-    <p><b>Standardabweichung</b> (Streuung der Einzelwerte): <span class="ieq"><i>s</i> = √<span style="text-decoration:overline">${F("(<i>x</i><sub>1</sub> − <i>x̄</i>)² + … + (<i>x</i><sub><i>n</i></sub> − <i>x̄</i>)²","<i>n</i> − 1")}</span></span></p>
-    <p><b>Standardunsicherheit des Mittelwerts:</b> <i>u</i> = <i>s</i> / √<i>n</i> – je mehr Messungen, desto genauer ist der Mittelwert.</p>
-    <p><b>Erweiterte Unsicherheit:</b> <i>U</i> = <i>k</i> · <i>u</i> mit dem Erweiterungsfaktor <i>k</i>. Angabe: <i>x</i> = <i>x̄</i> ± <i>U</i>.</p>
-    <div class="tablewrap"><table class="data" style="max-width:520px"><thead><tr><th>Erweiterungsfaktor <i>k</i></th><th>Überdeckungswahrscheinlichkeit (Normalverteilung)</th><th style="text-align:left">Verwendung</th></tr></thead><tbody>
-      <tr><td>k = 1</td><td>≈ 68,3 %</td><td style="text-align:left;white-space:normal">Standardunsicherheit, ohne Erweiterung</td></tr>
-      <tr><td>k = 2</td><td>≈ 95,4 %</td><td style="text-align:left;white-space:normal">Standard in Technik und Kalibrierung (z. B. DAkkS-Leitlinie EA-4/02)</td></tr>
-      <tr><td>k = 3</td><td>≈ 99,7 %</td><td style="text-align:left;white-space:normal">wenn höhere Sicherheit nötig ist</td></tr></tbody></table></div>`;
-  drawU(); renderHist();
-}
-function kTextHTML(){
-  return `k = ${S.k}: Bei normalverteilten Messwerten liegt der wahre Wert mit etwa <b>${KLEVEL[S.k]}</b> Wahrscheinlichkeit im Intervall ± <i>k</i> · <i>u</i>.`;
+    <p><b>Spannweite:</b> größter Wert − kleinster Wert. Sie zeigt, wie stark die Einzelwerte streuen.</p>
+    <p><b>Wann was?</b> Ohne Ausreißer sind Mittelwert und Median fast gleich. Gibt es einen Ausreißer, verschiebt er den Mittelwert, den Median aber kaum – dann ist der Median das bessere Ergebnis.</p>`;
+  drawU();
 }
 let uDots = [];
 function drawU(){
@@ -1701,13 +1660,7 @@ function drawU(){
   const l = 20, rgt = 20, base = H - 52;
   const X = x => l + (x - xr.lo)/(xr.hi - xr.lo)*(W - l - rgt);
   ctx.fillStyle = css("--panel"); ctx.fillRect(0,0,W,H);
-  const k = S.k, U = k*st.u;
   const reveal = !(S.predict && !S.revealed.u);
-  // Intervall x̄ ± k·u
-  if(reveal){
-    ctx.fillStyle = css("--accent"); ctx.globalAlpha = 0.12;
-    ctx.fillRect(X(st.m - U), 18, X(st.m + U) - X(st.m - U), base - 18); ctx.globalAlpha = 1;
-  }
   // Achse
   ctx.strokeStyle = css("--axis"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(l, base); ctx.lineTo(W - rgt, base); ctx.stroke();
   ctx.font = "12px system-ui"; ctx.fillStyle = css("--muted"); ctx.textAlign = "center"; ctx.textBaseline = "top";
@@ -1726,76 +1679,23 @@ function drawU(){
     if(S.u.excl[i]){ ctx.strokeStyle = css("--muted"); ctx.lineWidth = 2; ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]); }
     else { ctx.fillStyle = css("--ink"); ctx.globalAlpha = .82; ctx.fill(); ctx.globalAlpha = 1; }
   }
-  const vline = (x, color, txt, y, dash) => {
+  const vline = (x, color, txt, y, dash, left) => {
     ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.setLineDash(dash || []);
     ctx.beginPath(); ctx.moveTo(X(x), 14); ctx.lineTo(X(x), base); ctx.stroke(); ctx.setLineDash([]);
     ctx.font = "700 12px system-ui"; ctx.fillStyle = color; ctx.textBaseline = "top";
-    const right = X(x) < W - 90; ctx.textAlign = right ? "left" : "right";
+    const right = left ? X(x) < 110 : X(x) < W - 90; ctx.textAlign = right ? "left" : "right";
     ctx.fillText(txt, X(x) + (right ? 5 : -5), y);
   };
   if(reveal){
     vline(st.m, css("--accent"), "x̄ (Mittelwert)", 2);
-    vline(st.md, css("--v2"), "x̃ (Median)", 17);
+    vline(st.md, css("--v2"), "x̃ (Median)", 17, null, st.md < st.m);
   }
   if(S.u.showTrue) vline(U_A0, css("--start"), "wahrer Wert", base - 16 - 6*20 > 30 ? 32 : 32, [5,4]);
   const lg = [];
-  if(reveal) lg.push(`<span><i style="background:var(--accent)"></i>Mittelwert</span><span><i style="background:var(--v2)"></i>Median</span><span><i style="background:var(--accent);opacity:.25;height:10px"></i>Bereich <i>x̄</i> ± ${k} · <i>u</i></span>`);
+  if(reveal) lg.push(`<span><i style="background:var(--accent)"></i>Mittelwert</span><span><i style="background:var(--v2)"></i>Median</span>`);
   lg.push(`<span><i style="background:var(--ink);height:10px;width:10px;border-radius:50%"></i>Messwert</span><span><i style="border:2px dashed var(--muted);background:transparent;height:10px;width:10px;border-radius:50%"></i>ausgeschlossen</span>`);
   if(S.u.showTrue) lg.push(`<span><i style="background:var(--start)"></i>wahrer Wert</span>`);
   $("#uLegend").innerHTML = lg.join("");
-}
-/* ---- Histogramm-Animation ---- */
-const HI = {vals:[], running:false, mu:3.0, sigma:0.12, acc:0};
-function addHist(n){ for(let i = 0; i < n; i++) HI.vals.push(HI.mu + HI.sigma*gauss()); if(HI.vals.length > 20000) HI.vals.splice(0, HI.vals.length - 20000); }
-function stepHist(dt){
-  if(!HI.running) return false;
-  HI.acc += dt*Math.min(400, 20 + HI.vals.length*0.6);
-  const n = Math.floor(HI.acc); HI.acc -= n; addHist(n);
-  if(HI.vals.length >= 5000) HI.running = false;
-  return true;
-}
-function renderHist(){
-  $("#hiRun").textContent = HI.running ? "❚❚ Anhalten" : "▶ Messen lassen";
-  const n = HI.vals.length;
-  const sv = (k_,v,d,cls="") => `<div class="stat ${cls}"><div class="k">${k_}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`;
-  if(n < 2){ $("#hiStats").innerHTML = sv("Anzahl Messungen", n) + sv("Anteil in ± " + S.k + " · s", "–", "erwartet ≈ " + KLEVEL[S.k]); drawHist(); return; }
-  const m = mean(HI.vals), s = sdev(HI.vals);
-  const share = kk => HI.vals.filter(v => Math.abs(v - m) <= kk*s).length / n * 100;
-  let h = sv("Anzahl Messungen", n.toLocaleString("de-DE")) + sv("Mittelwert <i>x̄</i>", fmt(m,3)+" m/s²") + sv("Standardabweichung <i>s</i>", fmt(s,3)+" m/s²");
-  for(const kk of [1,2,3]) h += sv(`Anteil in <i>x̄</i> ± ${kk} · <i>s</i>`, fmt(share(kk),1)+" %", "erwartet ≈ " + KLEVEL[kk], kk === S.k ? "hl" : "");
-  $("#hiStats").innerHTML = h;
-  drawHist();
-}
-function drawHist(){
-  const P = prep($("#cvHist")); if(!P) return;
-  const {ctx, W, H} = P;
-  const lo = HI.mu - 4*HI.sigma, hi = HI.mu + 4*HI.sigma, nb = 40, bw = (hi - lo)/nb;
-  const bins = new Array(nb).fill(0);
-  for(const v of HI.vals){ const b = Math.floor((v - lo)/bw); if(b >= 0 && b < nb) bins[b]++; }
-  const n = HI.vals.length;
-  const peak = Math.max(5, ...bins, n*bw/(HI.sigma*Math.sqrt(TAU))*1.05);
-  const box = {l:52, t:12, w:W - 66, h:H - 52};
-  const xr = niceRange(lo, hi, 6), yr = niceRange(0, peak, 4);
-  const {X, Y} = axes(ctx, box, xr, yr, "a in m/s²", "Anzahl");
-  const m = n > 1 ? mean(HI.vals) : HI.mu, s = n > 1 ? sdev(HI.vals) : HI.sigma;
-  // Bänder
-  for(const kk of [3,2,1]){
-    ctx.fillStyle = css("--accent"); ctx.globalAlpha = kk === S.k ? 0.18 : 0.05;
-    ctx.fillRect(X(m - kk*s), box.t, X(m + kk*s) - X(m - kk*s), box.h); ctx.globalAlpha = 1;
-  }
-  ctx.fillStyle = css("--v1");
-  bins.forEach((c, i) => { if(!c) return; const x1 = X(lo + i*bw), x2 = X(lo + (i+1)*bw); ctx.fillRect(x1 + 0.5, Y(c), x2 - x1 - 1, Y(0) - Y(c)); });
-  // Glockenkurve
-  if(n > 30){
-    ctx.strokeStyle = css("--force"); ctx.lineWidth = 2; ctx.beginPath();
-    for(let i = 0; i <= 200; i++){ const x = lo + (hi - lo)*i/200, y = n*bw/(s*Math.sqrt(TAU))*Math.exp(-0.5*((x - m)/s)**2); i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); }
-    ctx.stroke();
-  }
-  ctx.font = "700 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = css("--accent");
-  for(const kk of [1,2,3]){
-    if(X(m + kk*s) < box.l + box.w - 4) ctx.fillText(`+${kk}s`, X(m + kk*s), box.t + 2);
-    if(X(m - kk*s) > box.l + 4) ctx.fillText(`−${kk}s`, X(m - kk*s), box.t + 2);
-  }
 }
 
 /* ================================================================
@@ -1828,8 +1728,8 @@ function buildAXSeg(){
 function aPoints(){
   const s = S.a.series, xv = curXV();
   return S.x.rows[s].map(row => {
-    const y = rowAvg(row), sd = sdev(row.a), u = sd/Math.sqrt(row.a.length);
-    return {x:xv.f(row), y, u, row};
+    const y = rowAvg(row);
+    return {x:xv.f(row), y, lo:Math.min(...row.a), hi:Math.max(...row.a), row};
   });
 }
 function fitOrigin(pts){ let sxy = 0, sxx = 0; for(const p of pts){ sxy += p.x*p.y; sxx += p.x*p.x; } return sxx ? sxy/sxx : NaN; }
@@ -1840,8 +1740,7 @@ function fitFree(pts){
   const c = sxy/sxx; return {c, b: my - c*mx};
 }
 function renderA(){
-  segSync("#aSeriesSeg", () => S.a.series); segSync("#aAvgSeg", () => S.a.avg); segSync(".kSeg", () => S.k); segSync("#aXSeg", () => S.a.xv[S.a.series]);
-  for(const t of $$(".kText")) t.innerHTML = kTextHTML();
+  segSync("#aSeriesSeg", () => S.a.series); segSync("#aAvgSeg", () => S.a.avg); segSync("#aXSeg", () => S.a.xv[S.a.series]);
   $("#aErr").checked = S.a.err; $("#aFree").checked = S.a.free;
   const s = S.a.series, rows = S.x.rows[s], xv = curXV(), pts = aPoints();
   const enough = rows.length >= 3;
@@ -1856,9 +1755,9 @@ function renderA(){
   $("#aBadgeText").textContent = found ? "Ursprungsgerade gefunden" : "Gesucht: Ursprungsgerade";
   // Tabelle
   const showQ = !(S.predict && !S.revealed.a);
-  let h = `<thead><tr><th>Nr.</th><th><i>r</i> in m</th><th><i>ω</i> in s⁻¹</th>${xv.id!=="w" && xv.id!=="r" ? `<th>${xv.th}</th>` : ""}<th><i>a</i> (${S.a.avg==="median"?"Median":"Mittelwert"}) in m/s²</th><th>± <i>k</i>·<i>u</i> in m/s²</th><th>${xv.q}</th></tr></thead><tbody>`;
+  let h = `<thead><tr><th>Nr.</th><th><i>r</i> in m</th><th><i>ω</i> in s⁻¹</th>${xv.id!=="w" && xv.id!=="r" ? `<th>${xv.th}</th>` : ""}<th><i>a</i> (${S.a.avg==="median"?"Median":"Mittelwert"}) in m/s²</th><th>Einzelwerte von … bis in m/s²</th><th>${xv.q}</th></tr></thead><tbody>`;
   pts.forEach((p,i) => {
-    h += `<tr><td>${i+1}</td><td>${fmt(p.row.r,3)}</td><td>${fmt(p.row.w,2)}</td>${xv.id!=="w" && xv.id!=="r" ? `<td>${fmtS(p.x,3)}</td>` : ""}<td>${fmt(p.y,2)}</td><td>${fmt(S.k*p.u,2)}</td><td><b>${fmtS(p.y/p.x,3)}</b></td></tr>`;
+    h += `<tr><td>${i+1}</td><td>${fmt(p.row.r,3)}</td><td>${fmt(p.row.w,2)}</td>${xv.id!=="w" && xv.id!=="r" ? `<td>${fmtS(p.x,3)}</td>` : ""}<td>${fmt(p.y,2)}</td><td>${fmt(p.lo,2)} … ${fmt(p.hi,2)}</td><td><b>${fmtS(p.y/p.x,3)}</b></td></tr>`;
   });
   if(!pts.length) h += `<tr><td colspan="7" class="muted" style="text-align:left">Keine Messwerte.</td></tr>`;
   $("#aTable").innerHTML = h + "</tbody>";
@@ -1892,7 +1791,7 @@ function renderA(){
   drawA(pts, found && good ? c : null, found && good && S.a.free ? ff : null);
   // Legende
   const lg = [`<span><i style="background:var(--accent);height:10px;width:10px;border-radius:50%"></i>Messwerte</span>`];
-  if(S.a.err) lg.push(`<span><i style="background:var(--muted);width:2px;height:12px"></i>Unsicherheit ± ${S.k} · <i>u</i></span>`);
+  if(S.a.err) lg.push(`<span><i style="background:var(--muted);width:2px;height:12px"></i>Streubereich der Einzelwerte</span>`);
   if(found && good) lg.push(`<span><i style="background:var(--start)"></i>Ausgleichsgerade durch den Ursprung</span>`);
   if(found && good && S.a.free) lg.push(`<span><i style="background:var(--warn)"></i>freie Ausgleichsgerade</span>`);
   $("#aLegend").innerHTML = lg.join("");
@@ -1921,21 +1820,21 @@ function interpretA(s, xv, c, ff, pts){
     h += devNote(dev);
     if(S.a.free && ff){
       const dr = ff.b/ff.c;
-      h += `<br><span class="small">Freie Ausgleichsgerade: <i>a</i> = ${fmtS(ff.c,3)} s⁻² · <i>r</i> ${ff.b<0?"−":"+"} ${fmtS(Math.abs(ff.b),2)} m/s². ${Math.abs(dr) > 0.006 ? `Der Achsenabschnitt deutet auf eine <b>systematische Abweichung</b> im Radius hin: Δ<i>r</i> = <i>b</i>/<i>c</i> ≈ ${fmt(dr*100,1)} cm. Liegt der Sensor gar nicht dort, wo wir <i>r</i> gemessen haben?` : "Der Achsenabschnitt ist im Rahmen der Messunsicherheit null – die Gerade geht praktisch durch den Ursprung."}</span>`;
+      h += `<br><span class="small">Freie Ausgleichsgerade: <i>a</i> = ${fmtS(ff.c,3)} s⁻² · <i>r</i> ${ff.b<0?"−":"+"} ${fmtS(Math.abs(ff.b),2)} m/s². ${Math.abs(dr) > 0.006 ? `Der Achsenabschnitt deutet auf eine <b>systematische Abweichung</b> im Radius hin: Δ<i>r</i> = <i>b</i>/<i>c</i> ≈ ${fmt(dr*100,1)} cm. Liegt der Sensor gar nicht dort, wo wir <i>r</i> gemessen haben?` : "Der Achsenabschnitt ist praktisch null – die Gerade geht durch den Ursprung."}</span>`;
     }
   }
   h += `</div>`;
   return h;
 }
 function devNote(dev){
-  if(Math.abs(dev) <= 4) return `<br><span class="small">Die Abweichung liegt im Rahmen der Messunsicherheit (wenige Prozent).</span>`;
+  if(Math.abs(dev) <= 4) return `<br><span class="small">Die Abweichung ist klein (wenige Prozent) und lässt sich durch die Streuung der Messwerte erklären.</span>`;
   return `<br><span class="small" style="color:var(--warn)">Die Abweichung ist größer, als die Streuung der Messwerte erklärt. Das spricht für eine <b>systematische</b> Messabweichung – z. B. sitzt der Sensor nicht genau dort, wo <i>r</i> gemessen wurde. Probiere die freie Ausgleichsgerade in Messreihe 2.</span>`;
 }
 function drawA(pts, c, ff, cv){
   const P = prep(cv || $("#cvA")); if(!P) return;
   const {ctx, W, H} = P;
   const xv = curXV();
-  const xmax = Math.max(1e-9, ...pts.map(p => p.x)), ymax = Math.max(1e-9, ...pts.map(p => p.y + (S.a.err ? S.k*p.u : 0)));
+  const xmax = Math.max(1e-9, ...pts.map(p => p.x)), ymax = Math.max(1e-9, ...pts.map(p => S.a.err ? p.hi : p.y));
   const xr = niceRange(0, xmax*1.06, Math.max(4, Math.floor((W-80)/80)));
   const yr = niceRange(0, ymax*1.06, Math.max(4, Math.floor((H-60)/50)));
   const box = {l:58, t:12, w:W - 74, h:H - 54};
@@ -1955,7 +1854,7 @@ function drawA(pts, c, ff, cv){
   for(const p of pts){
     const px = X(p.x), py = Y(p.y);
     if(S.a.err){
-      const e1 = Y(p.y + S.k*p.u), e2 = Y(p.y - S.k*p.u);
+      const e1 = Y(p.hi), e2 = Y(p.lo);
       ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(px, e1); ctx.lineTo(px, e2); ctx.moveTo(px - 5, e1); ctx.lineTo(px + 5, e1); ctx.moveTo(px - 5, e2); ctx.lineTo(px + 5, e2); ctx.stroke();
     }
@@ -1975,7 +1874,7 @@ function renderAResult(){
     h += `<p class="muted" style="margin-top:0">Finde in <b>beiden</b> Messreihen die Darstellung mit der Ursprungsgeraden. Noch offen: ${[!f1?"Messreihe 1 (<i>r</i> konstant)":"", !f2?"Messreihe 2 (<i>ω</i> konstant)":""].filter(Boolean).join(" und ")}.</p>`;
   } else {
     h += `<div class="eq big" style="margin-top:0"><i>a</i><sub>Z</sub> ~ <i>ω</i>² und <i>a</i><sub>Z</sub> ~ <i>r</i> &nbsp;⟹&nbsp; <span class="box"><i>a</i><sub>Z</sub> = <i>ω</i>² · <i>r</i> = ${F("<i>v</i>²","<i>r</i>")}</span></div>
-      <p>Der Proportionalitätsfaktor ist (im Rahmen der Messunsicherheit) <b>1</b>: Die Steigungen stimmen mit <i>r</i> bzw. <i>ω</i>² überein. Mit der Grundgleichung <i>F</i> = <i>m</i> · <i>a</i> ist der in der Herleitung gefundene Term <b>experimentell bestätigt</b>:</p>
+      <p>Der Proportionalitätsfaktor ist (bis auf kleine Messabweichungen) <b>1</b>: Die Steigungen stimmen mit <i>r</i> bzw. <i>ω</i>² überein. Mit der Grundgleichung <i>F</i> = <i>m</i> · <i>a</i> ist der in der Herleitung gefundene Term <b>experimentell bestätigt</b>:</p>
       <div class="eq big"><span class="box"><i>F</i><sub>Z</sub> = <i>m</i> · <i>ω</i>² · <i>r</i> = <i>m</i> · ${F("<i>v</i>²","<i>r</i>")}</span></div>`;
   }
   h += `<div class="tablewrap"><table class="data hyptable"><thead><tr><th>Änderung</th><th>Deine Hypothese</th><th>Ergebnis</th><th style="text-align:left">Begründung</th></tr></thead><tbody>`;
@@ -2027,9 +1926,6 @@ const MCQ = [
   {t:"Fünf Einzelwerte der Beschleunigung (in m/s²): 2,9 · 3,1 · 3,0 · 4,2 · 3,0. Wie groß ist der Median?",
    opts:["3,0 m/s²","3,24 m/s²","3,1 m/s²","4,2 m/s²"], right:0,
    ex:"Geordnet: 2,9 · 3,0 · <b>3,0</b> · 3,1 · 4,2 → mittlerer Wert 3,0 m/s². Der Mittelwert 3,24 m/s² wird vom Ausreißer 4,2 nach oben gezogen."},
-  {t:"Ein Messergebnis lautet a = (3,02 ± 0,06) m/s² mit dem Erweiterungsfaktor k = 2. Was bedeutet das?",
-   opts:["Der wahre Wert liegt mit etwa 95 % Wahrscheinlichkeit zwischen 2,96 m/s² und 3,08 m/s².","Der wahre Wert liegt sicher zwischen 2,96 m/s² und 3,08 m/s².","Der wahre Wert liegt mit etwa 68 % Wahrscheinlichkeit in diesem Bereich.","Alle Einzelmessungen liegen zwischen 2,96 m/s² und 3,08 m/s²."], right:0,
-   ex:"<i>k</i> = 2 entspricht bei normalverteilten Werten einer Überdeckungswahrscheinlichkeit von etwa 95 %. Sicher ist es nie – und einzelne Messwerte streuen stärker als der Mittelwert."},
   {t:"Der Sensor sitzt im Handy 1,4 cm weiter außen als angenommen. Welche Art Messabweichung ist das – und hilft es, öfter zu messen?",
    opts:["Systematisch – öfter messen hilft nicht.","Zufällig – der Mittelwert vieler Messungen gleicht sie aus.","Systematisch – der Median gleicht sie aus.","Zufällig – sie lässt sich nicht verringern."], right:0,
    ex:"Eine systematische Abweichung verschiebt <b>alle</b> Messwerte in dieselbe Richtung. Mittelwert oder Median ändern daran nichts – man muss die Ursache finden (z. B. Lage des Sensors bestimmen)."},
@@ -2131,7 +2027,7 @@ function renderMC(){
   MCQ.forEach((q,i) => {
     h += `<div class="card mcq"><div class="qn">Frage ${i+1}</div><div class="qt" style="font-weight:600;margin:4px 0 8px">${q.t}</div>${mcHTML("q"+i, q, S.q.mc[i], "once")}</div>`;
   });
-  if(sc.mcN === MCQ.length) h += `<div class="card"><div class="note ${sc.mcR >= 11 ? "good" : "info"}" style="margin:0"><b>Ergebnis: ${sc.mcR} von ${MCQ.length} richtig.</b> ${sc.mcR === MCQ.length ? "Hervorragend!" : sc.mcR >= 11 ? "Sehr gut! Lies dir die Erklärungen zu den falschen Antworten durch." : "Schau dir die Erklärungen an und wiederhole die Herleitung bzw. die Auswertung."}</div></div>`;
+  if(sc.mcN === MCQ.length) h += `<div class="card"><div class="note ${sc.mcR >= 10 ? "good" : "info"}" style="margin:0"><b>Ergebnis: ${sc.mcR} von ${MCQ.length} richtig.</b> ${sc.mcR === MCQ.length ? "Hervorragend!" : sc.mcR >= 10 ? "Sehr gut! Lies dir die Erklärungen zu den falschen Antworten durch." : "Schau dir die Erklärungen an und wiederhole die Herleitung bzw. die Auswertung."}</div></div>`;
   $("#qMC").innerHTML = h;
   bindMC($("#qMC"), (id, i) => { const n = +id.slice(1); if(S.q.mc[n] != null) return; S.q.mc[n] = i; persist(); renderQ(); });
   $("#mcReset").addEventListener("click", () => { if(Object.keys(S.q.mc).length && !confirm("Alle Antworten löschen?")) return; S.q.mc = {}; persist(); renderQ(); });
@@ -2383,7 +2279,7 @@ function buildPrint(){
   if(S.x.rows[1].length >= 2){ imgs.push(["Messreihe 1: a-ω-Diagramm", chartImage(1,"w")]); imgs.push(["Messreihe 1: a-ω²-Diagramm", chartImage(1,"w2")]); }
   if(S.x.rows[2].length >= 2){ imgs.push(["Messreihe 2: a-r-Diagramm", chartImage(2,"r")]); }
   if(imgs.length){
-    h += `<h2>4 Auswertung</h2><p class="meta">Werte aus den 5 Einzelmessungen: ${S.a.avg==="median" ? "Median" : "Mittelwert"}; Unsicherheitsbalken ± ${S.k}·u (u = s/√5). Grün: Ausgleichsgerade durch den Ursprung.</p><div class="pgrid">`;
+    h += `<h2>4 Auswertung</h2><p class="meta">Werte aus den 5 Einzelmessungen: ${S.a.avg==="median" ? "Median" : "Mittelwert"}; Balken: kleinster bis größter Einzelwert. Grün: Ausgleichsgerade durch den Ursprung.</p><div class="pgrid">`;
     for(const [t, src] of imgs) h += `<div><p><b>${t}</b></p><img src="${src}" alt="${t}"></div>`;
     h += `</div>`;
     for(const s of [1,2]){
@@ -2395,11 +2291,11 @@ function buildPrint(){
     if(S.a.found[1] && S.a.found[2]) h += `<p><b>Ergebnis:</b> a<sub>Z</sub> ~ ω² und a<sub>Z</sub> ~ r ⟹ a<sub>Z</sub> = ω²·r = v²/r; mit F = m·a: F<sub>Z</sub> = m·ω²·r = m·v²/r.</p>`;
   }
   // Messunsicherheit
-  const st = uStats(), U = S.k*st.u, R = roundResult(st.m, U);
+  const st = uStats();
   h += `<h2>5 Messunsicherheit (Mehrfachmessung bei r = 0,120 m, ω = 5,00 s⁻¹)</h2>
     <p>Messwerte a in m/s²: ${S.u.vals.map((v,i) => S.u.excl[i] ? `<s>${fmt(v,2)}</s>` : fmt(v,2)).join(" · ")}${S.u.excl.some(Boolean) ? " (durchgestrichen: ausgeschlossen)" : ""}</p>
-    <table><tr><th>n</th><th>Mittelwert</th><th>Median</th><th>Standardabweichung s</th><th>u = s/√n</th><th>Ergebnis (k = ${S.k})</th></tr>
-    <tr><td>${st.n}</td><td>${fmt(st.m,3)} m/s²</td><td>${fmt(st.md,3)} m/s²</td><td>${fmt(st.s,3)} m/s²</td><td>${fmt(st.u,3)} m/s²</td><td>a = (${R.x} ± ${R.U}) m/s², ≈ ${KLEVEL[S.k]}</td></tr></table>`;
+    <table><tr><th>n</th><th>Mittelwert</th><th>Median</th><th>Spannweite</th></tr>
+    <tr><td>${st.n}</td><td>${fmt(st.m,2)} m/s²</td><td>${fmt(st.md,2)} m/s²</td><td>${fmt(st.max - st.min,2)} m/s² (${fmt(st.min,2)} … ${fmt(st.max,2)})</td></tr></table>`;
   // Aufgaben
   const sc = qScores();
   h += `<h2>6 Aufgaben</h2><table><tr><th>Teil</th><th>Ergebnis</th></tr>
@@ -2433,7 +2329,6 @@ function frame(ts){
     if(S.tab === "einstieg"){ stepE(dt); drawE(); if(S.e.cut && !S.e.playing) renderE(); }
     else if(S.tab === "herleitung"){ if(stepH(dt)) drawH(); }
     else if(S.tab === "experiment"){ drawX(); liveAcc += dt; if(liveAcc > 0.1){ liveAcc = 0; drawXLive(); } }
-    else if(S.tab === "unsicherheit"){ if(stepHist(dt)){ histAcc += dt; if(histAcc > 0.12){ histAcc = 0; renderHist(); } } }
   }
   requestAnimationFrame(frame);
 }
@@ -2441,14 +2336,13 @@ function redrawCurrent(){
   if(S.tab === "einstieg") drawE();
   else if(S.tab === "herleitung") drawH();
   else if(S.tab === "experiment"){ drawX(); drawXLive(); }
-  else if(S.tab === "unsicherheit"){ drawU(); drawHist(); }
+  else if(S.tab === "unsicherheit") drawU();
   else if(S.tab === "auswertung") renderA();
   else if(S.tab === "aufgaben" && S.q.sub === "puzzle") drawMatch();
 }
 for(const b of $$("#tabs button")) b.addEventListener("click", () => showTab(b.dataset.tab));
 for(const c of $$(".optPredict")) c.addEventListener("change", e => setPredict(e.target.checked));
 for(const b of $$(".revealBtn")) b.addEventListener("click", () => { if(S.tab === "unsicherheit") S.revealed.u = true; else S.revealed.a = true; renderTab(); });
-segInit(".kSeg", () => S.k, v => { S.k = +v; persist(); renderTab(); });
 $("#shareBtn").addEventListener("click", shareLink);
 $("#pdfName").addEventListener("change", persist);
 document.addEventListener("keydown", e => {
