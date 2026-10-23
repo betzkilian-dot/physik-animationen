@@ -16,6 +16,9 @@ Die Seite läuft über GitHub Pages aus dem Branch `main` (Wurzelverzeichnis). J
    Meta-Tags/Manifest/Icons wie in der Überhol-Animation.
    Varianten einer Animation (z. B. einfachere Version) als Parameter `?modus=…` in derselben Datei statt als Kopie.
 4. `animationen/<id>/vorschau.png` (1280 × 720) per Playwright-Screenshot erzeugen.
+   Zusätzlich `animationen/<id>/schaubild.svg` (viewBox 640 × 360) zeichnen: kleines Schaubild mit Szene + Mini-Diagramm,
+   flach in den Farben der Animation, Farben als CSS-Variablen mit Dunkelmodus (`prefers-color-scheme`) im SVG.
+   Es ersetzt den Screenshot auf der Übersichtsseite (Feld `schaubild` in `animationen.js`); Vorlagen: vorhandene schaubild*.svg.
 5. Eintrag **oben** in `animationen.js` ergänzen (Felder wie beim vorhandenen Eintrag) und Tabelle in `README.md` ergänzen.
 6. Vor dem Push mit Playwright testen: keine Konsolenfehler, iPad quer (1180 × 740, hasTouch) und hochkant (820 × 1180),
    Desktop (1400 px) und Handy (390 px) ohne horizontales Scrollen, Touch-Bedienung (tap) prüfen,

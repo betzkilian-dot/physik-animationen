@@ -1,6 +1,7 @@
 /*
   Liste aller Animationen. Für eine neue Animation genügt ein weiterer Eintrag hier
-  plus ein Ordner unter animationen/<id>/ mit index.html und vorschau.png.
+  plus ein Ordner unter animationen/<id>/ mit index.html, vorschau.png und schaubild.svg
+  (schaubild = gezeichnetes Bild für die Karte auf der Übersichtsseite; fehlt es, wird vorschau.png gezeigt).
   Neueste Einträge bitte oben einfügen.
 */
 window.ANIMATIONEN = [
@@ -15,6 +16,7 @@ window.ANIMATIONEN = [
     stichworte: ["Zentripetalkraft", "Zentripetalbeschleunigung", "Kreisbewegung", "Winkelgeschwindigkeit", "Messunsicherheit", "Median", "Linearisierung", "Quiz"],
     pfad: "animationen/zentripetalkraft/",
     vorschau: "animationen/zentripetalkraft/vorschau.png",
+    schaubild: "animationen/zentripetalkraft/schaubild.svg",
     hinzugefuegt: "2026-10-23"
   },
   {
@@ -28,6 +30,7 @@ window.ANIMATIONEN = [
     stichworte: ["Zeit-Ort-Diagramm", "konstante Geschwindigkeit", "gleichförmige Bewegung", "Überholen", "Sicherheitsabstand"],
     pfad: "animationen/ueberholvorgang/?modus=einfach",
     vorschau: "animationen/ueberholvorgang/vorschau-einfach.png",
+    schaubild: "animationen/ueberholvorgang/schaubild-einfach.svg",
     hinzugefuegt: "2026-10-23"
   },
   {
@@ -41,6 +44,7 @@ window.ANIMATIONEN = [
     stichworte: ["Zeit-Ort-Diagramm", "Zeit-Geschwindigkeit-Diagramm", "Beschleunigung", "Straßenverkehr", "Sicherheitsabstand"],
     pfad: "animationen/ueberholvorgang/",
     vorschau: "animationen/ueberholvorgang/vorschau.png",
+    schaubild: "animationen/ueberholvorgang/schaubild.svg",
     hinzugefuegt: "2026-10-23"
   }
 ];

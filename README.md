@@ -9,7 +9,8 @@ Interaktive Physik-Animationen für den Unterricht, veröffentlicht über GitHub
 index.html                     Startseite mit Kacheln, Suche und Filter
 animationen.js                 Liste aller Animationen (daraus entstehen die Kacheln)
 animationen/<id>/index.html    eine Animation (eigenständige HTML-Datei, ohne externe Abhängigkeiten)
-animationen/<id>/vorschau.png  Vorschaubild für die Kachel (1280 × 720)
+animationen/<id>/schaubild.svg gezeichnetes Schaubild für die Kachel (16:9, mit Dunkelmodus)
+animationen/<id>/vorschau.png  Screenshot (1280 × 720), Ersatz falls kein Schaubild da ist
 ```
 
 ## Neue Animation hinzufügen

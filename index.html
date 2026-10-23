@@ -48,6 +48,7 @@ header p{margin:0;color:var(--muted);max-width:62ch}
 .card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .thumb{aspect-ratio:16/9;background:var(--soft);border-bottom:1px solid var(--line);overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+.thumb img.sb{object-fit:contain;object-position:center}
 .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
 .meta{display:flex;gap:6px;flex-wrap:wrap}
 .tag{font-size:12.5px;background:var(--tag);color:var(--tag-ink);padding:2px 9px;border-radius:999px;font-weight:600}
@@ -94,7 +95,7 @@ function draw(){
     (!q || [a.titel,a.beschreibung,a.themenbereich,a.lernbereich,...(a.stichworte||[])].join(" ").toLowerCase().includes(q)));
   document.getElementById("grid").innerHTML = hits.map(a => `
     <a class="card" href="${esc(a.pfad)}">
-      <div class="thumb">${a.vorschau ? `<img src="${esc(a.vorschau)}" alt="" loading="lazy">` : ""}</div>
+      <div class="thumb">${a.schaubild ? `<img class="sb" src="${esc(a.schaubild)}" alt="" loading="lazy">` : a.vorschau ? `<img src="${esc(a.vorschau)}" alt="" loading="lazy">` : ""}</div>
       <div class="body">
         <div class="meta"><span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span>${a.niveau ? `<span class="tag lvl">${esc(a.niveau)}</span>` : ""}</div>
         <h2>${esc(a.titel)}</h2>
