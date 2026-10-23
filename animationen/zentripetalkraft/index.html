@@ -144,6 +144,22 @@ input.ans{width:110px;text-align:right;font:inherit;font-size:16px;padding:7px 9
 #cvX{height:330px;touch-action:pan-y}
 #cvXlive{height:170px;touch-action:pan-y}
 #cvU{height:190px;touch-action:pan-y;cursor:pointer}
+#cvXd{height:320px;touch-action:pan-y;margin-top:8px}
+#cvXd.drawing{cursor:crosshair}
+#cvImp{height:180px;touch-action:pan-y}
+.livebox{margin-top:8px}
+.livebox summary{cursor:pointer;font-size:13.5px;color:var(--muted);padding:6px 0;min-height:36px}
+.prog{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.prog .pi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--soft)}
+.prog .pi.done{border-color:var(--start);background:var(--ok-bg)}
+.prog .bar{height:8px;border-radius:4px;background:var(--track);margin-top:6px;overflow:hidden}
+.prog .bar i{display:block;height:100%;background:var(--accent)}
+.prog .pi.done .bar i{background:var(--start)}
+textarea.why{width:100%;min-height:76px;font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--ink);resize:vertical}
+.impgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.impgrid label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.impgrid input[type=text]{width:100%;font:inherit;font-size:16px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--soft);color:var(--ink);min-height:44px}
+.reveal-q{color:var(--muted)}
 .cvA{height:330px;touch-action:pan-y}
 @media (max-height:900px) and (min-width:900px){
   #cvE{height:min(420px,calc(100vh - 170px))}
@@ -324,7 +340,7 @@ html.forcelight{
 <nav class="tabs" id="tabs" role="tablist" aria-label="Abschnitte">
   <button role="tab" data-tab="einstieg"><span class="n">1</span>Einstieg</button>
   <button role="tab" data-tab="herleitung"><span class="n">2</span>Herleitung<span class="tick" id="tickH"></span></button>
-  <button role="tab" data-tab="experiment"><span class="n">3</span>Experiment</button>
+  <button role="tab" data-tab="experiment"><span class="n">3</span>Experiment<span class="tick" id="tickX"></span></button>
   <button role="tab" data-tab="unsicherheit"><span class="n">4</span>Messunsicherheit</button>
   <button role="tab" data-tab="auswertung"><span class="n">5</span>Auswertung<span class="tick" id="tickA"></span></button>
   <button role="tab" data-tab="aufgaben"><span class="n">6</span>Aufgaben</button>
@@ -344,6 +360,7 @@ html.forcelight{
           <button class="btn" id="eCut">✂ Faden durchtrennen</button>
           <button class="btn" id="eReset">↺ Neu</button>
         </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" class="optPredict"> <span><b>Vorhersage-Modus:</b> <i>T</i>, <i>f</i> und <i>v</i> zuerst selbst berechnen</span></label>
       </div>
       <div class="card">
         <h2>Deine Hypothesen</h2>
@@ -398,6 +415,7 @@ html.forcelight{
         </div>
         <canvas id="cvH" aria-label="Geometrische Konstruktion zur Herleitung"></canvas>
         <div id="hCtl"></div>
+        <label class="check"><input type="checkbox" class="optPredict"> <span><b>Vorhersage-Modus:</b> Δ<i>v</i>/Δ<i>t</i> in der Tabelle zuerst selbst berechnen</span></label>
       </div>
     </section>
     <section class="below" id="hBelow"></section>
@@ -431,6 +449,16 @@ html.forcelight{
           <button class="btn small" id="xClear">Messreihe löschen</button>
         </div>
       </div>
+      <div class="card">
+        <h2>Echte Messung auswerten</h2>
+        <p class="small muted" style="margin-top:0">Ihr habt selbst gemessen? Übernehmt eure Daten in die aktuelle Messreihe – sie werden genauso ausgewertet wie die simulierten.</p>
+        <div class="btnrow" style="margin-top:4px">
+          <label class="btn small" for="xFile" style="flex:1">📄 phyphox-Datei laden</label>
+          <input type="file" id="xFile" accept=".csv,.txt,.tsv,.zip,text/csv,application/zip" hidden>
+          <button class="btn small" id="xHandBtn" style="flex:1">✎ Von Hand eintragen</button>
+        </div>
+        <p class="small muted" style="margin:6px 0 0">phyphox: Experiment exportieren als <b>CSV</b> (beliebiges Trennzeichen) oder die ZIP-Datei direkt laden.</p>
+      </div>
     </aside>
     <section class="view sticky">
       <div class="card">
@@ -439,15 +467,29 @@ html.forcelight{
           <span class="badge" id="xBadge"><span class="dot"></span><span id="xBadgeText"></span></span>
         </div>
         <canvas id="cvX" aria-label="Drehteller mit Smartphone in der Draufsicht"></canvas>
-        <div class="legend" id="xLegend"></div>
-        <canvas id="cvXlive" aria-label="Sensordaten der letzten Sekunden"></canvas>
+        <details class="livebox" id="xLiveBox" open>
+          <summary>Sensordaten der letzten 8 Sekunden</summary>
+          <canvas id="cvXlive" aria-label="Sensordaten der letzten Sekunden"></canvas>
+        </details>
       </div>
     </section>
     <section class="below">
+      <div class="card" id="xProgress"></div>
+      <div class="card" id="xImport" hidden></div>
       <div class="card">
         <h2>Messtabelle <span class="muted small" id="xTableTitle" style="font-weight:400"></span></h2>
         <p class="small muted" style="margin-top:0">Pro Messung nimmt das Smartphone <b>5 Einzelwerte</b> der Beschleunigung auf. Manche Einzelwerte sind durch Erschütterungen verfälscht – findest du sie? Masse des Smartphones: <i>m</i> = 0,20 kg.</p>
         <div class="tablewrap"><table class="data" id="xTable"></table></div>
+      </div>
+      <div class="card">
+        <h2 id="xdTitle">Diagramm</h2>
+        <div class="row" style="margin-top:0">
+          <div class="seg" id="xdModeSeg"><button data-v="auto">Automatisch zeichnen</button><button data-v="self">Selbst zeichnen</button></div>
+        </div>
+        <div id="xdInfo" class="small"></div>
+        <canvas id="cvXd" aria-label="Diagramm der Messwerte"></canvas>
+        <div class="btnrow" id="xdBtns"></div>
+        <div id="xdFb"></div>
       </div>
       <div class="card">
         <h2>Wie funktioniert der Beschleunigungssensor?</h2>
@@ -465,15 +507,26 @@ html.forcelight{
     <aside class="side sticky">
       <div class="card">
         <h2>Mehrfachmessung</h2>
-        <p class="small muted" style="margin-top:0">Das Smartphone liegt bei <i>r</i> = 0,120 m, der Drehteller dreht mit <i>ω</i> = 5,00 s<sup>−1</sup>. Die Beschleunigung wird bei <b>gleicher Einstellung</b> mehrmals gemessen.</p>
+        <div class="row" style="margin-top:0">
+          <span class="lbl">Welche Messwerte?</span>
+          <div class="seg" id="uSrcSeg"><button data-v="demo">Beispiel-Messreihe</button><button data-v="own">Eigene Messung</button></div>
+        </div>
+        <div id="uOwnBox" hidden>
+          <label class="lbl" for="uOwnSel">Messung aus dem Experiment</label>
+          <select id="uOwnSel"></select>
+          <p class="small muted" style="margin:6px 0 0">Es werden die Einzelwerte dieser Messung ausgewertet.</p>
+        </div>
+        <div id="uDemoBox">
+        <p class="small muted" style="margin-top:0" id="uDemoText">Das Smartphone liegt bei <i>r</i> = 0,120 m, der Drehteller dreht mit <i>ω</i> = 5,00 s<sup>−1</sup>. Die Beschleunigung wird bei <b>gleicher Einstellung</b> mehrmals gemessen.</p>
         <div id="fieldsU"></div>
         <div class="row">
           <span class="lbl">Streuung der Messwerte</span>
           <div class="seg" id="uSpreadSeg"><button data-v="0.02">klein</button><button data-v="0.05">mittel</button><button data-v="0.10">groß</button></div>
         </div>
         <label class="check"><input type="checkbox" id="uOutlier" checked> <span>Ausreißer einbauen (Handy wurde angestoßen)</span></label>
-        <label class="check"><input type="checkbox" id="uTrue"> <span>„Wahren Wert“ einblenden <span class="muted">(im echten Experiment unbekannt!)</span></span></label>
         <div class="btnrow"><button class="btn primary" id="uNew" style="flex:1">↻ Neue Messreihe</button></div>
+        </div>
+        <label class="check" id="uTrueRow"><input type="checkbox" id="uTrue"> <span>„Wahren Wert“ einblenden <span class="muted">(im echten Experiment unbekannt!)</span></span></label>
         <label class="check"><input type="checkbox" class="optPredict"> <span><b>Vorhersage-Modus:</b> Kennwerte zuerst verdecken, damit selbst gerechnet wird</span></label>
       </div>
     </aside>
@@ -637,12 +690,12 @@ const sdev = arr => { const n = arr.length; if(n < 2) return NaN; const m = mean
    Zustand
    ================================================================ */
 const S = {
-  tab:"einstieg", predict:false, revealed:{u:false, a:false}, allSteps:false,
+  tab:"einstieg", predict:false, revealed:{u:false, a:false, e:false, h:false}, allSteps:false, lockSol:false,
   e:{m:0.5, r:0.60, w:2.0, showV:true, trail:false, playing:true, speed:1, cut:false, phi:0.6, cutT:0, cutPos:null, cutVel:null, trailPts:[]},
-  hyp:{m:null, w:null, r:null},
+  hyp:{m:null, w:null, r:null, why:""},
   h:{unlocked:1, open:1, dphi:40, ans:{}, shifted:false, shiftAnim:0, phi:0},
-  x:{series:1, r:0.12, w:4.0, offset:false, sensorView:true, rows:{1:[], 2:[]}, motor:4.0, t:0, buf:[], phi:0, lastMeasure:null},
-  u:{n:9, spread:0.05, outlier:true, showTrue:false, vals:[], excl:[], seed:1},
+  x:{series:1, r:0.12, w:4.0, offset:false, sensorView:true, rows:{1:[], 2:[]}, dmode:"auto", draw:{1:{pts:[], checked:false}, 2:{pts:[], checked:false}}, motor:4.0, t:0, buf:[], phi:0, lastMeasure:null},
+  u:{n:9, spread:0.05, outlier:true, showTrue:false, vals:[], excl:[], seed:1, src:"demo", own:null},
   a:{series:1, xv:{1:"w", 2:"r"}, avg:"median", err:true, free:false, found:{1:false, 2:false}, tries:{1:0, 2:0}},
   q:{sub:"mc", mc:{}, order:null, orderDone:false, orderTries:0, form:{}, match:{}, matchDone:false, calc:{}}
 };
@@ -656,9 +709,9 @@ function persist(){
     try{
       localStorage.setItem(STORE, JSON.stringify({
         hyp:S.hyp, h:{unlocked:S.h.unlocked, ans:S.h.ans},
-        x:{rows:S.x.rows, offset:S.x.offset},
+        x:{rows:S.x.rows, offset:S.x.offset, draw:S.x.draw, dmode:S.x.dmode},
         a:{found:S.a.found, avg:S.a.avg, tries:S.a.tries},
-        q:{mc:S.q.mc, order:S.q.order, orderDone:S.q.orderDone, orderTries:S.q.orderTries, form:S.q.form, match:S.q.match, matchDone:S.q.matchDone, calc:S.q.calc},
+        q:{mc:S.q.mc, calcSeed:S.q.calcSeed, order:S.q.order, orderDone:S.q.orderDone, orderTries:S.q.orderTries, form:S.q.form, match:S.q.match, matchDone:S.q.matchDone, calc:S.q.calc},
         name: $("#pdfName").value || ""
       }));
     }catch(e){}
@@ -669,9 +722,11 @@ function restore(){
     const d = JSON.parse(localStorage.getItem(STORE) || "null"); if(!d) return;
     if(d.hyp) Object.assign(S.hyp, d.hyp);
     if(d.h){ S.h.unlocked = clamp(d.h.unlocked|0, 1, 6); S.h.open = Math.min(S.h.unlocked, 5); S.h.ans = d.h.ans || {}; }
-    if(d.x && d.x.rows){ for(const k of ["1","2"]) if(Array.isArray(d.x.rows[k])) S.x.rows[k] = d.x.rows[k].filter(r => r && isFinite(r.r) && isFinite(r.w) && Array.isArray(r.a)); S.x.offset = !!d.x.offset; }
+    if(d.x && d.x.rows){ for(const k of ["1","2"]) if(Array.isArray(d.x.rows[k])) S.x.rows[k] = d.x.rows[k].filter(r => r && isFinite(r.r) && isFinite(r.w) && Array.isArray(r.a)); S.x.offset = !!d.x.offset;
+      if(d.x.draw) for(const k of ["1","2"]) if(d.x.draw[k] && Array.isArray(d.x.draw[k].pts)) S.x.draw[k] = {pts:d.x.draw[k].pts.filter(p => p && isFinite(p.x) && isFinite(p.y)), checked:!!d.x.draw[k].checked};
+      if(d.x.dmode === "self") S.x.dmode = "self"; }
     if(d.a){ Object.assign(S.a.found, d.a.found||{}); if(d.a.avg) S.a.avg = d.a.avg; Object.assign(S.a.tries, d.a.tries||{}); }
-    if(d.q) Object.assign(S.q, d.q);
+    if(d.q){ if(!d.q.calcSeed) d.q.calc = {}; Object.assign(S.q, d.q); }
     if(d.name) $("#pdfName").value = d.name;
   }catch(e){}
 }
@@ -856,13 +911,14 @@ function renderTab(){
 function updateTicks(){
   $("#tickH").textContent = S.h.unlocked >= 6 ? "✓" : "";
   $("#tickA").textContent = S.a.found[1] && S.a.found[2] ? "✓" : "";
+  $("#tickX").textContent = xDone() ? "✓" : "";
 }
 
 /* ================================================================
    Vorhersage-Modus (gemeinsam für alle Reiter)
    ================================================================ */
 function setPredict(on){
-  S.predict = on; S.revealed = {u:false, a:false};
+  S.predict = on; S.revealed = {u:false, a:false, e:false, h:false};
   for(const c of $$(".optPredict")) c.checked = on;
   renderTab(); saveHash();
 }
@@ -880,7 +936,11 @@ const hypText = v => (HOPT.find(o => o.v === v) || {t:"–"}).t;
 function buildHyp(){
   $("#hypBox").innerHTML = HYP.map(h => `<div class="hyp"><div class="qt">${h.q}</div>
     <div class="seg" data-hyp="${h.k}">${HOPT.map(o => `<button data-v="${o.v}">${o.t}</button>`).join("")}</div></div>`).join("") +
-    `<p class="small muted" style="margin:8px 0 0">Deine Wahl wird auf diesem Gerät gespeichert.</p>`;
+    `<div class="hyp"><label class="qt" for="hypWhy" style="display:block">Begründe deine Vermutungen kurz:</label>
+      <textarea class="why" id="hypWhy" placeholder="Ich vermute, dass … weil …"></textarea></div>
+    <p class="small muted" style="margin:8px 0 0">Deine Wahl wird auf diesem Gerät gespeichert und erscheint im PDF.</p>`;
+  const why = $("#hypWhy"); why.value = S.hyp.why || "";
+  why.addEventListener("input", () => { S.hyp.why = why.value.slice(0, 1500); persist(); });
   for(const seg of $$("#hypBox .seg")){
     const k = seg.dataset.hyp;
     segInit(seg, () => S.hyp[k], v => { S.hyp[k] = +v; persist(); });
@@ -900,7 +960,7 @@ function buildE(){
   $("#eSpeed").addEventListener("change", e => { S.e.speed = parseFloat(e.target.value); });
   buildHyp();
 }
-function afterE(){ refreshGroup("e"); if(S.e.cut){ S.e.cut = false; } S.e.trailPts = []; renderE(); saveHash(); }
+function afterE(){ S.revealed.e = false; refreshGroup("e"); if(S.e.cut){ S.e.cut = false; } S.e.trailPts = []; renderE(); saveHash(); }
 function cutE(){
   if(S.e.cut) return;
   const {r, w} = S.e, p = S.e.phi;
@@ -913,10 +973,15 @@ function renderE(){
   refreshGroup("e");
   const {m, r, w} = S.e, T = TAU/w, v = w*r;
   const st = (k,v,d,cls="") => `<div class="stat ${cls}"><div class="k">${k}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`;
+  const hide = S.predict && !S.revealed.e;
+  const q = (x, u) => hide ? '<span class="reveal-q">?</span>' : x + " " + u;
   $("#eStats").innerHTML =
     st("Masse <i>m</i>", fmt(m,2)+" kg") + st("Radius <i>r</i>", fmt(r,2)+" m") +
-    st("Winkelgeschwindigkeit <i>ω</i>", fmt(w,2)+" s⁻¹") + st("Umlaufdauer <i>T</i>", fmt(T,2)+" s") +
-    st("Frequenz <i>f</i>", fmt(1/T,2)+" Hz") + st("Bahngeschwindigkeit <i>v</i>", fmt(v,2)+" m/s", "Betrag konstant", "hl");
+    st("Winkelgeschwindigkeit <i>ω</i>", fmt(w,2)+" s⁻¹") + st("Umlaufdauer <i>T</i>", q(fmt(T,2),"s")) +
+    st("Frequenz <i>f</i>", q(fmt(1/T,2),"Hz")) + st("Bahngeschwindigkeit <i>v</i>", q(fmt(v,2),"m/s"), "Betrag konstant", "hl") +
+    (hide ? `<div class="stat" style="display:flex;align-items:center;justify-content:center"><button class="btn primary small" id="eReveal">Werte aufdecken</button></div>` : "");
+  const rv = $("#eReveal"); if(rv) rv.addEventListener("click", () => { S.revealed.e = true; renderE(); });
+  $("#cvE").setAttribute("aria-label", `Draufsicht: Ein Körper der Masse ${fmt(m,2)} kg läuft mit ω = ${fmt(w,2)} pro Sekunde auf einem Kreis mit r = ${fmt(r,2)} m.${S.e.cut ? " Der Faden ist durchtrennt, der Körper fliegt tangential geradeaus weiter." : ""}`);
   $("#ePlay").textContent = S.e.playing ? "❚❚ Pause" : "▶ Weiter";
   $("#eBadge").className = "badge " + (S.e.cut ? "wait" : "run");
   $("#eBadgeText").textContent = S.e.cut ? "Faden durchtrennt – Körper bewegt sich geradlinig weiter" : "Gleichförmige Kreisbewegung";
@@ -1164,6 +1229,12 @@ function updateHCtl(){
   $("#hViewTitle").textContent = titles[m];
   const badge = {1:"Betrag von v konstant – Richtung ändert sich", 2:"Δv = v₂ − v₁", 3:"Δv : v = Δs : r", 4:"Δs ≈ v · Δt", 5:"Beschleunigung zeigt zum Mittelpunkt"};
   $("#hBadgeText").textContent = badge[m];
+  const desc = {1:"Ein Körper läuft auf einer Kreisbahn um den Mittelpunkt M. Die Geschwindigkeitspfeile an verschiedenen Stellen sind gleich lang, zeigen aber immer tangential in verschiedene Richtungen.",
+    2:`Zwei Positionen P1 und P2 auf dem Kreis, Drehwinkel ${S.h.dphi} Grad. An beiden Punkten ist der Geschwindigkeitspfeil tangential eingezeichnet. Rechts sind beide Pfeile an einem gemeinsamen Punkt angetragen; der Differenzpfeil Δv zeigt zum Kreismittelpunkt.`,
+    3:`Zwei gleichschenklige Dreiecke mit dem gleichen Winkel Δφ = ${S.h.dphi} Grad an der Spitze: aus den Ortsvektoren r, r mit der Sehne Δs und aus den Geschwindigkeiten v, v mit Δv.`,
+    4:`Wie Schritt 3; zusätzlich ist der Kreisbogen zwischen P1 und P2 hervorgehoben, der fast so lang ist wie die Sehne Δs, wenn der Winkel klein ist.`,
+    5:"Ein Körper auf der Kreisbahn mit tangentialem Geschwindigkeitspfeil v und dem Pfeil der Zentripetalbeschleunigung, der senkrecht dazu zum Mittelpunkt zeigt."}[m];
+  $("#cvH").setAttribute("aria-label", desc);
   const lg = [];
   if(m >= 2 && m <= 4) lg.push(`<span><i style="background:var(--rad)"></i>Ortsvektoren <i>r</i></span><span><i style="background:var(--v1)"></i><i>v</i><sub>1</sub></span><span><i style="background:var(--v2)"></i><i>v</i><sub>2</sub></span><span><i style="background:var(--dv)"></i>Δ<i>v</i></span>`);
   if(m >= 3 && m <= 4) lg.push(`<span><i style="background:var(--ds)"></i>Δ<i>s</i> (Sehne)</span>`);
@@ -1184,10 +1255,11 @@ function renderHTable(){
       <div class="tablewrap"><table class="data"><thead><tr><th>Δ<i>φ</i></th><th>Δ<i>t</i> in s</th><th>Bogen <i>v</i> · Δ<i>t</i> in m</th><th>Sehne Δ<i>s</i> in m</th><th>Δ<i>v</i> in m/s</th><th>${m>=4?"Δ<i>v</i> / Δ<i>t</i> in m/s²":"Δ<i>v</i> / <i>v</i>"}</th>${m>=3?"<th>Δ<i>s</i> / <i>r</i></th>":""}</tr></thead><tbody>`;
     for(const d of rows){
       const ph = d*Math.PI/180, dt = ph/w, arc = v*dt, ch = 2*r*Math.sin(ph/2), dv = 2*v*Math.sin(ph/2);
-      h += `<tr class="${d===cur?"sel":""}"><td>${fmt(d,0)}°</td><td>${fmt(dt,4)}</td><td>${fmt(arc,4)}</td><td>${fmt(ch,4)}</td><td>${fmt(dv,4)}</td><td>${m>=4?fmt(dv/dt,3):fmt(dv/v,4)}</td>${m>=3?`<td>${fmt(ch/r,4)}</td>`:""}</tr>`;
+      h += `<tr class="${d===cur?"sel":""}"><td>${fmt(d,0)}°</td><td>${fmt(dt,4)}</td><td>${fmt(arc,4)}</td><td>${fmt(ch,4)}</td><td>${fmt(dv,4)}</td><td>${m>=4?(S.predict && !S.revealed.h ? '<span class="reveal-q">?</span>' : fmt(dv/dt,3)):fmt(dv/v,4)}</td>${m>=3?`<td>${fmt(ch/r,4)}</td>`:""}</tr>`;
     }
     h += `</tbody></table></div>`;
-    if(m >= 4) h += `<p class="small muted" style="margin-bottom:0">Vergleiche: <i>v</i>²/<i>r</i> = (4,0 m/s)² / 2,0 m = <b>8,0 m/s²</b>. Für Δ<i>t</i> → 0 nähern sich Bogen und Sehne an – und Δ<i>v</i>/Δ<i>t</i> nähert sich 8,0 m/s².</p>`;
+    if(m >= 4 && S.predict && !S.revealed.h) h += `<div class="btnrow"><button class="btn primary small" id="hReveal">Δv/Δt aufdecken</button><span class="small muted">Berechne Δv/Δt für zwei Zeilen selbst.</span></div>`;
+    else if(m >= 4) h += `<p class="small muted" style="margin-bottom:0">Vergleiche: <i>v</i>²/<i>r</i> = (4,0 m/s)² / 2,0 m = <b>8,0 m/s²</b>. Für Δ<i>t</i> → 0 nähern sich Bogen und Sehne an – und Δ<i>v</i>/Δ<i>t</i> nähert sich 8,0 m/s².</p>`;
     else if(m === 3) h += `<p class="small muted" style="margin-bottom:0">Die beiden letzten Spalten stimmen in jeder Zeile überein – so wie es die Ähnlichkeit der Dreiecke verlangt.</p>`;
     else h += `<p class="small muted" style="margin-bottom:0">Je kleiner der Winkel, desto kleiner wird Δ<i>v</i> – aber auch Δ<i>t</i>. Entscheidend ist ihr Verhältnis (Schritt 4).</p>`;
     h += `</div>`;
@@ -1201,6 +1273,7 @@ function renderHTable(){
   if(S.h.unlocked > 5) got.push(`<span class="ieq"><i>a</i><sub>Z</sub> = <i>ω</i>² · <i>r</i></span> und <span class="ieq"><i>F</i><sub>Z</sub> = <i>m</i> · ${F("<i>v</i>²","<i>r</i>")} = <i>m</i> · <i>ω</i>² · <i>r</i></span>`);
   h += `<div class="card"><h2>Bisher hergeleitet</h2>${got.length ? `<ol style="margin:0;padding-left:20px">${got.map(g=>`<li style="margin:4px 0">${g}</li>`).join("")}</ol>` : `<p class="muted" style="margin:0">Noch nichts – beantworte die Frage in Schritt 1.</p>`}</div>`;
   $("#hBelow").innerHTML = h;
+  const hr = $("#hReveal"); if(hr) hr.addEventListener("click", () => { S.revealed.h = true; renderHTable(); });
 }
 function stepH(dt){
   const m = hMode();
@@ -1296,7 +1369,7 @@ function drawH(){
   label(ctx, "r", "", (cx + P1.x)/2 + 12*Math.sin(t1), (cy + P1.y)/2 + 12*Math.cos(t1), cRad, 16);
   label(ctx, "r", "", (cx + P2.x)/2 - 12*Math.sin(t2), (cy + P2.y)/2 - 12*Math.cos(t2), cRad, 16);
   if(m >= 3) label(ctx, "Δs", "", (P1.x+P2.x)/2, (P1.y+P2.y)/2 + 14, cds, 16);
-  if(m === 4) label(ctx, "v·Δt", "", cx, cy - R - 16, css("--warn"), 15);
+  if(m === 4) label(ctx, "v · Δt", "", cx, cy - R - 16, css("--warn"), 15);
   // rechte Winkel zwischen r und v
   if(m >= 3){
     for(const [Pp, t] of [[P1,t1],[P2,t2]]){
@@ -1396,8 +1469,9 @@ function buildX(){
   $("#xClear").addEventListener("click", () => {
     if(!S.x.rows[S.x.series].length) return;
     if(!confirm(`Messreihe ${S.x.series} wirklich löschen?`)) return;
-    S.x.rows[S.x.series] = []; S.a.found[S.x.series] = false; persist(); renderX();
+    S.x.rows[S.x.series] = []; rowsChanged(S.x.series); persist(); renderX();
   });
+  buildXExtra();
 }
 function afterX(){ refreshGroup("x"); renderXText(); saveHash(); }
 function renderXText(){
@@ -1414,7 +1488,7 @@ function renderXText(){
 }
 function renderX(){
   refreshGroup("x"); segSync("#xSeriesSeg", () => S.x.series);
-  renderXText(); renderXTable(); drawX(); drawXLive();
+  renderXText(); renderXTable(); drawX(); drawXLive(); renderXProgress(); renderXDiagram(); renderImport(); updateTicks();
 }
 function steady(){ return Math.abs(S.x.motor - S.x.w) / S.x.w < 0.02; }
 function measureX(){
@@ -1425,7 +1499,7 @@ function measureX(){
   if(s === 2 && rows.length && Math.abs(S.x.w - xFixed(2)) > 1e-9){ S.x.w = xFixed(2); }
   rows.push(makeRow(S.x.r, S.x.w, Math.random));
   S.x.lastMeasure = performance.now();
-  S.a.found[s] = false;
+  rowsChanged(s);
   persist(); renderX();
 }
 function makeRow(r, w, rnd){
@@ -1434,28 +1508,29 @@ function makeRow(r, w, rnd){
   const a = [];
   for(let i = 0; i < NVAL; i++) a.push(a0*(1 + 0.025*gauss(rnd)) + 0.04*gauss(rnd));
   if(rnd() < 0.35){ const j = Math.floor(rnd()*NVAL); a[j] = a0*(1 + (rnd() < 0.75 ? 1 : -1)*(0.25 + 0.25*rnd())); }
-  return {r:+r.toFixed(4), w:+wm.toFixed(3), w0:w, a:a.map(x => +Math.max(0, x).toFixed(3))};
+  return {r:+r.toFixed(4), w:+wm.toFixed(3), w0:w, a:a.map(x => +Math.max(0, x).toFixed(3)), aTrue:+a0.toFixed(4), src:"sim"};
 }
 function sampleData(){
   const rnd = seeded(20261023 + (S.x.offset?7:0));
   S.x.rows[1] = [2,3,4,5,6,7,8].map(w => makeRow(0.12, w, rnd));
   S.x.rows[2] = [0.04,0.06,0.08,0.10,0.12,0.14,0.16,0.18].map(r => makeRow(r, 5.0, rnd));
-  S.a.found = {1:false, 2:false};
+  rowsChanged(1); rowsChanged(2);
   if(S.x.series === 1) S.x.r = 0.12; else S.x.w = 5.0;
   persist(); renderX();
 }
 function rowAvg(row, how=S.a.avg){ return how === "mean" ? mean(row.a) : median(row.a); }
 function renderXTable(){
   const s = S.x.series, rows = S.x.rows[s];
-  let h = `<thead><tr><th>Nr.</th><th><i>r</i> in m</th><th><i>ω</i> in s⁻¹</th><th style="text-align:left">5 Einzelwerte <i>a</i> in m/s²</th><th>Median <i>ã</i> in m/s²</th><th>Mittelwert <i>ā</i> in m/s²</th><th><i>F</i><sub>Z</sub> = <i>m</i> · <i>ã</i> in N</th><th></th></tr></thead><tbody>`;
+  let h = `<thead><tr><th>Nr.</th><th><i>r</i> in m</th><th><i>ω</i> in s⁻¹</th><th style="text-align:left">Einzelwerte <i>a</i> in m/s²</th><th>Median <i>ã</i> in m/s²</th><th>Mittelwert <i>ā</i> in m/s²</th><th><i>F</i><sub>Z</sub> = <i>m</i> · <i>ã</i> in N</th><th></th></tr></thead><tbody>`;
   if(!rows.length) h += `<tr><td colspan="8" class="muted" style="text-align:left;white-space:normal">Noch keine Messwerte. Stelle ${s===1?"<i>ω</i>":"<i>r</i>"} ein, warte bis die Drehzahl konstant ist, und tippe auf „Messwert aufnehmen“.</td></tr>`;
   rows.forEach((row, i) => {
     const md = median(row.a), mn = mean(row.a);
-    h += `<tr><td>${i+1}</td><td>${fmt(row.r,3)}</td><td>${fmt(row.w,2)}</td><td class="vals" style="text-align:left">${row.a.map(x => fmt(x,2)).join(" · ")}</td><td><b>${fmt(md,2)}</b></td><td>${fmt(mn,2)}</td><td>${fmt(PHONE_M*md,3)}</td><td><button class="del" data-del="${i}" aria-label="Messung ${i+1} löschen">✕</button></td></tr>`;
+    const srcIcon = row.src === "phyphox" ? ' <span title="aus phyphox-Datei">📄</span>' : row.src === "hand" ? ' <span title="von Hand eingetragen">✎</span>' : "";
+    h += `<tr><td>${i+1}${srcIcon}</td><td>${fmt(row.r,3)}</td><td>${fmt(row.w,2)}</td><td class="vals" style="text-align:left">${row.a.map(x => fmt(x,2)).join(" · ")}</td><td><b>${fmt(md,2)}</b></td><td>${fmt(mn,2)}</td><td>${fmt(PHONE_M*md,3)}</td><td><button class="del" data-del="${i}" aria-label="Messung ${i+1} löschen">✕</button></td></tr>`;
   });
   $("#xTable").innerHTML = h + "</tbody>";
   for(const b of $$("#xTable [data-del]")) b.addEventListener("click", () => {
-    S.x.rows[s].splice(+b.dataset.del, 1); S.a.found[s] = false; persist(); renderX();
+    S.x.rows[s].splice(+b.dataset.del, 1); rowsChanged(s); persist(); renderX();
   });
 }
 let xSampleAcc = 0;
@@ -1581,7 +1656,22 @@ function drawXLive(){
    4  MESSUNSICHERHEIT
    ================================================================ */
 const U_A0 = 3.0;      // wahrer Wert: ω² r = 25 · 0,12 m/s²
+function uOwnRow(){
+  if(!S.u.own) return null;
+  const [sr, ir] = S.u.own.split("-").map(Number);
+  return (S.x.rows[sr] || [])[ir] || null;
+}
+function uTrueVal(){
+  if(S.u.src === "demo") return U_A0;
+  const row = uOwnRow(); return row && row.aTrue != null ? row.aTrue : null;
+}
 function genU(){
+  if(S.u.src === "own"){
+    if(!uOwnRow()){ const all = [1,2].flatMap(sr => S.x.rows[sr].map((_,i) => sr+"-"+i)); S.u.own = all[0] || null; }
+    const row = uOwnRow();
+    if(row){ S.u.vals = row.a.slice(); S.u.excl = row.a.map(() => false); S.revealed.u = false; return; }
+    S.u.src = "demo";
+  }
   const rnd = seeded(1000 + S.u.seed*7919);
   const vals = [];
   for(let i = 0; i < S.u.n; i++) vals.push(U_A0*(1 + S.u.spread*gauss(rnd)));
@@ -1597,6 +1687,11 @@ function buildU(){
   $("#uOutlier").addEventListener("change", e => { S.u.outlier = e.target.checked; genU(); renderU(); });
   $("#uTrue").addEventListener("change", e => { S.u.showTrue = e.target.checked; drawU(); });
   $("#uNew").addEventListener("click", () => { S.u.seed++; genU(); renderU(); });
+  segInit("#uSrcSeg", () => S.u.src, v => {
+    if(v === "own" && !S.x.rows[1].length && !S.x.rows[2].length){ toast("Im Experiment gibt es noch keine Messungen. Miss zuerst oder lade Beispieldaten."); segSync("#uSrcSeg", () => S.u.src); return; }
+    S.u.src = v; genU(); renderU();
+  });
+  $("#uOwnSel").addEventListener("change", e => { S.u.own = e.target.value; genU(); renderU(); });
   // Tippen auf Messwert → aus-/einschließen
   const cv = $("#cvU");
   cv.addEventListener("click", e => {
@@ -1617,6 +1712,15 @@ function uStats(){
 }
 function renderU(){
   refreshGroup("u"); segSync("#uSpreadSeg", () => S.u.spread);
+  if(S.u.src === "own" && !uOwnRow()) genU();
+  segSync("#uSrcSeg", () => S.u.src);
+  const own = S.u.src === "own";
+  $("#uOwnBox").hidden = !own; $("#uDemoBox").hidden = own;
+  if(own){
+    $("#uOwnSel").innerHTML = [1,2].flatMap(sr => S.x.rows[sr].map((r,i) => `<option value="${sr}-${i}" ${S.u.own === sr+"-"+i ? "selected" : ""}>Messreihe ${sr}, Messung ${i+1}: r = ${fmt(r.r,3)} m, ω = ${fmt(r.w,2)} s⁻¹${r.src === "phyphox" ? " (phyphox)" : r.src === "hand" ? " (von Hand)" : ""}</option>`)).join("");
+  }
+  const tv = uTrueVal();
+  $("#uTrueRow").hidden = tv == null;
   $("#uOutlier").checked = S.u.outlier; $("#uTrue").checked = S.u.showTrue;
   const st = uStats();
   // Werte-Tabelle (in Messreihenfolge)
@@ -1631,16 +1735,16 @@ function renderU(){
     sv("Unterschied <i>x̄</i> − <i>x̃</i>", (diff >= 0 ? "+" : "−") + fmt(Math.abs(diff),2)+" m/s²", "") +
     sv("Spannweite", fmt(st.max - st.min,2)+" m/s²", `kleinster … größter Wert: ${fmt(st.min,2)} … ${fmt(st.max,2)}`);
   let note = "";
-  const hasOut = S.u.outlier && S.u.vals.some((v,i) => !S.u.excl[i] && v > U_A0*1.25);
+  const hasOut = st.used.some(v => Math.abs(v - st.md)/st.md > 0.15);
   if(hasOut) note = `<div class="note warn">Ein <b>Ausreißer</b> ist in der Auswertung. Er zieht den <b>Mittelwert</b> um ${fmt(Math.abs(diff),2)} m/s² vom Median weg und vergrößert die Spannweite deutlich. Der <b>Median</b> ist dagegen <b>robust</b>: Er ist der mittlere Wert der geordneten Liste – wie weit die äußersten Werte entfernt liegen, spielt keine Rolle. Deshalb ist bei Ausreißern der Median das bessere Ergebnis.<br>Tippe auf den Ausreißer, um ihn auszuschließen – aber nur mit Begründung (z. B. „Handy wurde angestoßen“)!</div>`;
-  else if(S.u.outlier) note = `<div class="note good">Der Ausreißer ist ausgeschlossen. Mittelwert und Median liegen jetzt nah beieinander, und die Spannweite ist kleiner geworden.</div>`;
+  else if(S.u.excl.some(Boolean)) note = `<div class="note good">Der Ausreißer ist ausgeschlossen. Mittelwert und Median liegen jetzt nah beieinander, und die Spannweite ist kleiner geworden.</div>`;
   else note = `<div class="note good">Ohne Ausreißer liegen Mittelwert und Median nah beieinander – beide sind ein gutes Messergebnis.</div>`;
   const best = hasOut ? st.md : st.m;
   $("#uResult").innerHTML = `<div class="note info" style="margin-top:10px"><b>Messergebnis</b> (${hasOut ? "Median, wegen des Ausreißers" : "Mittelwert"}):
       <div class="eq big" style="margin:6px 0 2px"><i>a</i> ≈ ${fmt(best,2)} m/s²</div>
-      <span class="small muted">Die Einzelwerte streuen zwischen ${fmt(st.min,2)} m/s² und ${fmt(st.max,2)} m/s².${S.u.showTrue ? ` Der „wahre Wert“ ist ${fmt(U_A0,2)} m/s²: Der Mittelwert weicht um ${fmt(Math.abs(st.m - U_A0),2)} m/s² ab, der Median um ${fmt(Math.abs(st.md - U_A0),2)} m/s².` : ""}</span></div>` + note;
+      <span class="small muted">Die Einzelwerte streuen zwischen ${fmt(st.min,2)} m/s² und ${fmt(st.max,2)} m/s².${S.u.showTrue && tv != null ? ` Der „wahre Wert“ ist ${fmt(tv,2)} m/s²: Der Mittelwert weicht um ${fmt(Math.abs(st.m - tv),2)} m/s² ab, der Median um ${fmt(Math.abs(st.md - tv),2)} m/s².` : ""}</span></div>` + note;
   $("#uStatwrap").classList.toggle("hidden", S.predict && !S.revealed.u);
-  $("#uBadgeText").textContent = `n = ${st.n}`;
+  $("#uBadgeText").textContent = `n = ${st.n}` + (own ? " · eigene Messung" : "");
   $("#uHow").innerHTML = `
     <p><b>Mittelwert:</b> <span class="ieq"><i>x̄</i> = ${F("<i>x</i><sub>1</sub> + <i>x</i><sub>2</sub> + … + <i>x</i><sub><i>n</i></sub>","<i>n</i>")}</span></p>
     <p><b>Median:</b> Werte der Größe nach ordnen. Bei ungerader Anzahl ist der Median der mittlere Wert, bei gerader Anzahl der Mittelwert der beiden mittleren Werte.<br>
@@ -1654,7 +1758,8 @@ function drawU(){
   const P = prep($("#cvU")); if(!P) return;
   const {ctx, W, H} = P;
   const st = uStats(), all = S.u.vals;
-  const lo = Math.min(...all, U_A0) , hi = Math.max(...all, U_A0);
+  const tv = S.u.showTrue ? uTrueVal() : null;
+  const lo = Math.min(...all, tv ?? Infinity), hi = Math.max(...all, tv ?? -Infinity);
   const pad = (hi - lo)*0.12 + 0.05;
   const xr = niceRange(lo - pad, hi + pad, Math.max(4, Math.floor(W/90)));
   const l = 20, rgt = 20, base = H - 52;
@@ -1690,12 +1795,353 @@ function drawU(){
     vline(st.m, css("--accent"), "x̄ (Mittelwert)", 2);
     vline(st.md, css("--v2"), "x̃ (Median)", 17, null, st.md < st.m);
   }
-  if(S.u.showTrue) vline(U_A0, css("--start"), "wahrer Wert", base - 16 - 6*20 > 30 ? 32 : 32, [5,4]);
+  if(tv != null) vline(tv, css("--start"), "wahrer Wert", 32, [5,4]);
   const lg = [];
   if(reveal) lg.push(`<span><i style="background:var(--accent)"></i>Mittelwert</span><span><i style="background:var(--v2)"></i>Median</span>`);
   lg.push(`<span><i style="background:var(--ink);height:10px;width:10px;border-radius:50%"></i>Messwert</span><span><i style="border:2px dashed var(--muted);background:transparent;height:10px;width:10px;border-radius:50%"></i>ausgeschlossen</span>`);
-  if(S.u.showTrue) lg.push(`<span><i style="background:var(--start)"></i>wahrer Wert</span>`);
+  if(tv != null) lg.push(`<span><i style="background:var(--start)"></i>wahrer Wert</span>`);
   $("#uLegend").innerHTML = lg.join("");
+}
+
+/* ================================================================
+   3b  EXPERIMENT: Fortschritt, Diagramm (automatisch / selbst zeichnen),
+       echte Messdaten (phyphox-Datei, Eingabe von Hand)
+   ================================================================ */
+const NEED = 5;   // verschiedene Werte pro Messreihe
+function rowsChanged(s){
+  S.a.found[s] = false;
+  S.x.draw[s] = {pts:[], checked:false};
+}
+function seriesStatus(s){
+  const rows = S.x.rows[s];
+  const key = s === 1 ? r => Math.round(r.w*4)/4 : r => Math.round(r.r*200)/200;
+  const distinct = new Set(rows.map(key)).size;
+  return {n:rows.length, distinct, done: distinct >= NEED};
+}
+function xDone(){ return seriesStatus(1).done && seriesStatus(2).done; }
+
+function buildXExtra(){
+  segInit("#xdModeSeg", () => S.x.dmode, v => { S.x.dmode = v; renderXDiagram(); });
+  const cv = $("#cvXd");
+  cv.addEventListener("click", e => {
+    if(S.x.dmode !== "self" || !XD.geo) return;
+    const s = S.x.series, rows = S.x.rows[s], d = S.x.draw[s];
+    if(d.checked || d.pts.length >= rows.length) return;
+    const r = cv.getBoundingClientRect(), g = XD.geo;
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    if(px < g.box.l - 12 || px > g.box.l + g.box.w + 12 || py < g.box.t - 12 || py > g.box.t + g.box.h + 12) return;
+    const x = clamp(g.xr.lo + (px - g.box.l)/g.box.w*(g.xr.hi - g.xr.lo), g.xr.lo, g.xr.hi);
+    const y = clamp(g.yr.lo + (1 - (py - g.box.t)/g.box.h)*(g.yr.hi - g.yr.lo), g.yr.lo, g.yr.hi);
+    d.pts.push({x, y}); persist(); renderXDiagram();
+  });
+  // echte Messdaten
+  $("#xFile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if(f) await loadDataFile(f);
+  });
+  $("#xHandBtn").addEventListener("click", () => { IMP.mode = "hand"; renderImport(); $("#xImport").scrollIntoView({behavior:"smooth", block:"start"}); });
+}
+function renderXProgress(){
+  const st = [seriesStatus(1), seriesStatus(2)];
+  const pi = (s, t) => `<div class="pi ${t.done?"done":""}"><b>Messreihe ${s}</b> <span class="muted small">(${s===1?"<i>r</i> konstant, <i>ω</i> verändern":"<i>ω</i> konstant, <i>r</i> verändern"})</span>
+    <div class="small" style="margin-top:4px">${t.done ? "✓ abgeschlossen" : `${t.distinct} von ${NEED} verschiedenen ${s===1?"<i>ω</i>-Werten":"Radien"}`}${t.n > t.distinct ? ` <span class="muted">(${t.n} Messungen)</span>` : ""}</div>
+    <div class="bar"><i style="width:${Math.min(100, t.distinct/NEED*100)}%"></i></div></div>`;
+  let h = `<h2>Fortschritt im Experiment</h2><div class="prog">${pi(1, st[0])}${pi(2, st[1])}</div>`;
+  if(st[0].done && st[1].done){
+    h += `<div class="note good" style="margin-bottom:0"><b>Experiment abgeschlossen.</b> Beide Messreihen haben genug verschiedene Werte. Jetzt wird ausgewertet: Welche Darstellung ergibt eine Ursprungsgerade?
+      <div class="btnrow"><button class="btn primary" data-go="auswertung">Weiter zur Auswertung →</button></div></div>`;
+  } else {
+    const cur = S.x.series, other = cur === 1 ? 2 : 1;
+    if(st[cur-1].done) h += `<div class="note info" style="margin-bottom:0">Messreihe ${cur} ist vollständig. <div class="btnrow"><button class="btn primary" data-switch="${other}">Weiter mit Messreihe ${other} →</button></div></div>`;
+    else h += `<p class="small muted" style="margin-bottom:0">Eine Messreihe ist abgeschlossen, wenn sie mindestens ${NEED} <b>verschiedene</b> Einstellungen enthält. Verteile die Werte über den ganzen Bereich.</p>`;
+  }
+  $("#xProgress").innerHTML = h;
+  const g = $("#xProgress [data-go]"); if(g) g.addEventListener("click", () => { S.a.series = 1; buildAXSeg(); showTab("auswertung"); });
+  const sw = $("#xProgress [data-switch]"); if(sw) sw.addEventListener("click", () => {
+    S.x.series = +sw.dataset.switch; const f = xFixed(S.x.series); if(f != null){ if(S.x.series===1) S.x.r = f; else S.x.w = f; }
+    renderX(); saveHash();
+  });
+}
+
+/* ---- Diagramm im Experiment ---- */
+const XD = {geo:null};
+function xdData(s){ return S.x.rows[s].map(r => ({x: s === 1 ? r.w : r.r, y: median(r.a), row:r})); }
+function renderXDiagram(){
+  segSync("#xdModeSeg", () => S.x.dmode);
+  const s = S.x.series, rows = S.x.rows[s], d = S.x.draw[s], self = S.x.dmode === "self";
+  $("#xdTitle").innerHTML = s === 1 ? `<i>a</i>-<i>ω</i>-Diagramm der Messreihe 1` : `<i>a</i>-<i>r</i>-Diagramm der Messreihe 2`;
+  $("#cvXd").classList.toggle("drawing", self && !d.checked);
+  let info = "", btns = "", fb = "";
+  if(!rows.length){
+    info = `<p class="muted" style="margin:6px 0 0">Noch keine Messwerte in Messreihe ${s}.</p>`;
+  } else if(!self){
+    info = `<p class="muted" style="margin:6px 0 0">Jeder Punkt ist der <b>Median</b> der Einzelwerte einer Messung (fett in der Tabelle). Der zuletzt gemessene Punkt ist hervorgehoben.</p>`;
+  } else if(!d.checked){
+    const k = d.pts.length;
+    if(k < rows.length){
+      const r = rows[k];
+      info = `<div class="note info" style="margin:8px 0 0">Trage die Messpunkte aus der Tabelle ein. <b>Messung ${k+1}:</b> ${s===1 ? `<i>ω</i> = ${fmt(r.w,2)} s⁻¹` : `<i>r</i> = ${fmt(r.r,3)} m`}, <i>ã</i> = ${fmt(median(r.a),2)} m/s² – tippe an die passende Stelle.</div>`;
+    } else {
+      info = `<div class="note good" style="margin:8px 0 0">Alle ${rows.length} Punkte sind eingetragen. Prüfe dein Diagramm.</div>`;
+    }
+    btns = `<button class="btn small" id="xdUndo" ${k ? "" : "disabled"}>↶ Letzten Punkt entfernen</button><button class="btn small" id="xdClear" ${k ? "" : "disabled"}>Alle löschen</button><button class="btn primary small" id="xdCheck" ${k === rows.length ? "" : "disabled"}>Prüfen</button>`;
+  } else {
+    const res = xdCheck(s), ok = res.filter(Boolean).length;
+    fb = ok === res.length
+      ? `<div class="fb ok"><b>Alle ${res.length} Punkte richtig eingetragen!</b> Beschreibe den Verlauf: Liegen die Punkte auf einer Ursprungsgeraden?</div>`
+      : `<div class="fb hint"><b>${ok} von ${res.length} Punkten richtig.</b> Rot: dein Punkt, grün umrandet: richtige Lage. Achte auf die Einteilung der Achsen.</div>`;
+    btns = `<button class="btn small" id="xdRetry">↻ Noch einmal zeichnen</button>`;
+  }
+  $("#xdInfo").innerHTML = info; $("#xdBtns").innerHTML = btns; $("#xdFb").innerHTML = fb;
+  const on = (id, f) => { const b = $("#"+id); if(b) b.addEventListener("click", f); };
+  on("xdUndo", () => { d.pts.pop(); persist(); renderXDiagram(); });
+  on("xdClear", () => { d.pts = []; persist(); renderXDiagram(); });
+  on("xdCheck", () => { d.checked = true; persist(); renderXDiagram(); });
+  on("xdRetry", () => { S.x.draw[s] = {pts:[], checked:false}; persist(); renderXDiagram(); });
+  drawXd();
+}
+function xdGeo(s, W, H){
+  const data = xdData(s);
+  const xr = s === 1 ? niceRange(0, Math.max(10, ...data.map(p => p.x))*1.0, Math.max(4, Math.floor((W-80)/70)))
+                     : niceRange(0, Math.max(0.2, ...data.map(p => p.x)), Math.max(4, Math.floor((W-80)/70)));
+  const ymax = data.length ? Math.max(...data.map(p => p.y))*1.12 : 10;
+  const yr = niceRange(0, ymax, Math.max(4, Math.floor((H-60)/45)));
+  return {box:{l:58, t:12, w:W - 74, h:H - 54}, xr, yr};
+}
+function xdCheck(s){
+  const data = xdData(s), d = S.x.draw[s], g = XD.geo;
+  if(!g) return [];
+  return data.map((p, i) => {
+    const q = d.pts[i]; if(!q) return false;
+    const dx = Math.abs(p.x - q.x)/(g.xr.hi - g.xr.lo), dy = Math.abs(p.y - q.y)/(g.yr.hi - g.yr.lo);
+    return dx <= 0.025 && dy <= 0.03;
+  });
+}
+function drawXd(){
+  const P = prep($("#cvXd")); if(!P) return;
+  const {ctx, W, H} = P, s = S.x.series;
+  const g = XD.geo = xdGeo(s, W, H);
+  const {X, Y} = axes(ctx, g.box, g.xr, g.yr, s === 1 ? "ω in s⁻¹" : "r in m", "a in m/s²");
+  const data = xdData(s), d = S.x.draw[s], self = S.x.dmode === "self";
+  const dot = (x, y, fill, ring, rad=5.5) => {
+    ctx.beginPath(); ctx.arc(X(x), Y(y), rad, 0, TAU);
+    if(fill){ ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = css("--panel"); ctx.lineWidth = 1.5; ctx.stroke(); }
+    if(ring){ ctx.strokeStyle = ring; ctx.lineWidth = 2.5; ctx.stroke(); }
+  };
+  if(!self){
+    data.forEach((p, i) => dot(p.x, p.y, i === data.length - 1 ? css("--warn") : css("--accent"), null, i === data.length - 1 ? 7 : 5.5));
+    return;
+  }
+  const res = d.checked ? xdCheck(s) : [];
+  if(d.checked){
+    data.forEach((p, i) => {
+      const q = d.pts[i];
+      if(q && !res[i]){ ctx.strokeStyle = css("--end"); ctx.globalAlpha = .5; ctx.lineWidth = 1.2; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(X(q.x), Y(q.y)); ctx.lineTo(X(p.x), Y(p.y)); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; }
+      dot(p.x, p.y, null, css("--start"), 8);
+    });
+  }
+  d.pts.forEach((q, i) => {
+    dot(q.x, q.y, d.checked ? (res[i] ? css("--start") : css("--end")) : css("--accent"));
+    ctx.font = "600 11px system-ui"; ctx.fillStyle = css("--muted"); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.fillText(String(i+1), X(q.x) + 7, Y(q.y) - 4);
+  });
+}
+
+/* ---- Echte Messdaten: phyphox-Datei oder Eingabe von Hand ---- */
+const IMP = {mode:null, name:"", files:[], fileIdx:0, headers:[], cols:[], t:-1, w:-1, a:-1, t0:0, t1:0, msg:""};
+async function loadDataFile(file){
+  try{
+    const buf = await file.arrayBuffer();
+    const u8 = new Uint8Array(buf);
+    IMP.name = file.name; IMP.files = [];
+    if(u8[0] === 0x50 && u8[1] === 0x4B){
+      const entries = zipEntries(buf).filter(f => /\.(csv|txt|tsv)$/i.test(f.name) && !/(^|\/)meta\//i.test(f.name) && !/__MACOSX/.test(f.name));
+      if(!entries.length) throw new Error("In der ZIP-Datei ist keine CSV-Datei.");
+      for(const en of entries) IMP.files.push({name:en.name, text: await zipRead(buf, en)});
+    } else {
+      IMP.files.push({name:file.name, text:new TextDecoder("utf-8").decode(u8)});
+    }
+    // Datei mit den meisten passenden Spalten zuerst
+    IMP.files.sort((a,b) => scoreCsv(b.text) - scoreCsv(a.text));
+    selectImpFile(0);
+    IMP.mode = "file";
+    renderImport();
+    $("#xImport").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(err){
+    toast("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : err), 6000);
+  }
+}
+function scoreCsv(text){ const h = (text.split(/\r?\n/)[0] || "").toLowerCase(); return (/angular|winkel|gyro/.test(h)?2:0) + (/centripetal|zentripetal|radial|accel|beschleun/.test(h)?2:0) + (/time|zeit/.test(h)?1:0); }
+function parseCsv(text){
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim().length);
+  if(lines.length < 3) throw new Error("Zu wenige Zeilen.");
+  const first = lines[0];
+  const cnt = c => first.split(c).length - 1;
+  const sep = cnt("\t") > 0 ? "\t" : cnt(";") > 0 ? ";" : ",";
+  const split = l => l.split(sep).map(x => x.trim().replace(/^"(.*)"$/, "$1"));
+  const headers = split(first);
+  const cols = headers.map(() => []);
+  for(const l of lines.slice(1)){
+    const parts = split(l);
+    if(parts.length < headers.length) continue;
+    const nums = parts.map(parseNum);
+    if(nums.slice(0, headers.length).some(v => !isFinite(v))) continue;
+    nums.slice(0, headers.length).forEach((v,i) => cols[i].push(v));
+  }
+  if(cols[0].length < 5) throw new Error("Keine Zahlenwerte gefunden.");
+  return {headers, cols};
+}
+function selectImpFile(i){
+  IMP.fileIdx = i;
+  const {headers, cols} = parseCsv(IMP.files[i].text);
+  IMP.headers = headers; IMP.cols = cols;
+  const find = re => headers.findIndex(h => re.test(h));
+  IMP.t = find(/time|zeit|^t\b/i); if(IMP.t < 0) IMP.t = 0;
+  IMP.w = find(/angular|winkelgeschw|ω|omega|gyro.*z|rad\/s/i);
+  IMP.a = find(/centripetal|zentripetal|radial/i);
+  if(IMP.a < 0) IMP.a = find(/accel|beschleun/i);
+  if(IMP.w < 0) IMP.w = headers.length > 1 ? 1 : 0;
+  if(IMP.a < 0) IMP.a = headers.length > 2 ? 2 : 0;
+  const t = cols[IMP.t], T0 = t[0], T1 = t[t.length - 1];
+  IMP.t0 = +(T0 + (T1 - T0)*0.1).toFixed(2); IMP.t1 = +(T1 - (T1 - T0)*0.1).toFixed(2);
+  IMP.msg = "";
+}
+function impSegment(){
+  const t = IMP.cols[IMP.t], w = IMP.cols[IMP.w], a = IMP.cols[IMP.a];
+  const idx = []; for(let i = 0; i < t.length; i++) if(t[i] >= IMP.t0 && t[i] <= IMP.t1) idx.push(i);
+  return {idx, t, w, a};
+}
+function impRowFromSegment(r){
+  const {idx, w, a} = impSegment();
+  if(idx.length < 10) return {err:"Im gewählten Zeitbereich liegen zu wenige Messpunkte (mindestens 10)."};
+  const vals = [];
+  for(let k = 0; k < NVAL; k++){
+    const part = idx.slice(Math.floor(k*idx.length/NVAL), Math.floor((k+1)*idx.length/NVAL));
+    vals.push(mean(part.map(i => Math.abs(a[i]))));
+  }
+  const wm = mean(idx.map(i => Math.abs(w[i])));
+  return {row:{r, w:+wm.toFixed(3), a:vals.map(v => +v.toFixed(3)), src:"phyphox"}};
+}
+function addRealRow(row){
+  const s = S.x.series, rows = S.x.rows[s];
+  if(rows.length >= 12){ toast("Höchstens 12 Messungen pro Reihe."); return false; }
+  if(!(row.r > 0 && row.r < 2)){ toast("Bitte einen gültigen Radius in Meter eingeben (z. B. 0,12)."); return false; }
+  if(!(row.w > 0)){ toast("Die Winkelgeschwindigkeit muss größer als null sein."); return false; }
+  if(!row.a.length || row.a.some(v => !(v >= 0))){ toast("Bitte gültige Beschleunigungswerte eingeben."); return false; }
+  const f = xFixed(s);
+  if(s === 1 && f != null && Math.abs(row.r - f) > 0.0005){ toast(`In Messreihe 1 bleibt der Radius gleich (${fmt(f,3)} m). Übernimm die Messung in Messreihe 2 oder korrigiere r.`, 5000); return false; }
+  if(s === 2 && f != null && Math.abs(row.w - f)/f > 0.06) toast(`Hinweis: In Messreihe 2 sollte ω gleich bleiben (${fmt(f,2)} s⁻¹) – deine Messung weicht um ${fmt(Math.abs(row.w - f)/f*100,0)} % ab.`, 5000);
+  rows.push(row); rowsChanged(s);
+  if(s === 1) S.x.r = clamp(Math.round(xFixed(1)*200)/200, 0.04, 0.20);
+  else S.x.w = clamp(Math.round(xFixed(2)*10)/10, 1, 10);
+  persist(); renderX();
+  toast(`Messung ${rows.length} in Messreihe ${s} übernommen.`);
+  return true;
+}
+function renderImport(){
+  const box = $("#xImport");
+  if(!IMP.mode){ box.hidden = true; return; }
+  box.hidden = false;
+  const s = S.x.series, f = xFixed(s), rDef = s === 1 && f != null ? f : S.x.r;
+  let h = "";
+  if(IMP.mode === "hand"){
+    h = `<h2>Messwerte von Hand eintragen <span class="muted small" style="font-weight:400">→ Messreihe ${s}</span></h2>
+      <div class="impgrid">
+        <div><label for="hR">Radius <i>r</i> in m (Achse → Sensor)</label><input type="text" inputmode="decimal" id="hR" value="${fmt(rDef,3)}" ${s===1 && f!=null ? "readonly" : ""}></div>
+        <div><label for="hW">Winkelgeschwindigkeit <i>ω</i> in s⁻¹</label><input type="text" inputmode="decimal" id="hW" placeholder="z. B. 4,8"></div>
+        <div style="grid-column:1/-1"><label for="hA">Beschleunigung <i>a</i> in m/s² – 1 bis 5 Einzelwerte, mit Strichpunkt trennen</label><input type="text" inputmode="decimal" id="hA" placeholder="z. B. 2,71; 2,80; 2,75"></div>
+      </div>
+      <div class="btnrow"><button class="btn primary" id="hAdd">In Messreihe ${s} übernehmen</button><button class="btn" id="impClose">Schließen</button></div>
+      <p class="small muted" style="margin-bottom:0">Tipp: Zeigt eure Messapp <i>ω</i> nicht an, stoppt die Zeit für 10 Umdrehungen: <i>ω</i> = 2π · 10 / <i>t</i>.</p>`;
+  } else {
+    const fsel = IMP.files.length > 1 ? `<div><label for="impF">Datei im ZIP-Archiv</label><select id="impF">${IMP.files.map((x,i) => `<option value="${i}" ${i===IMP.fileIdx?"selected":""}>${x.name}</option>`).join("")}</select></div>` : "";
+    const opt = sel => IMP.headers.map((hd,i) => `<option value="${i}" ${i===sel?"selected":""}>${hd}</option>`).join("");
+    const seg = impSegment();
+    h = `<h2>phyphox-Datei übernehmen <span class="muted small" style="font-weight:400">${IMP.name} → Messreihe ${s}</span></h2>
+      <div class="impgrid">${fsel}
+        <div><label for="impT">Spalte Zeit</label><select id="impT">${opt(IMP.t)}</select></div>
+        <div><label for="impW">Spalte Winkelgeschwindigkeit <i>ω</i></label><select id="impW">${opt(IMP.w)}</select></div>
+        <div><label for="impA">Spalte Zentripetalbeschleunigung <i>a</i></label><select id="impA">${opt(IMP.a)}</select></div>
+      </div>
+      <canvas id="cvImp" aria-label="Verlauf von a und ω in der Datei" style="margin-top:10px"></canvas>
+      <p class="small muted" style="margin:4px 0 8px">Wähle einen Zeitbereich, in dem <i>ω</i> konstant ist (blau hinterlegt). Er wird in 5 gleich lange Abschnitte geteilt – jeder liefert einen Einzelwert von <i>a</i>.</p>
+      <div class="impgrid">
+        <div><label for="impT0">von <i>t</i> in s</label><input type="text" inputmode="decimal" id="impT0" value="${fmt(IMP.t0,2)}"></div>
+        <div><label for="impT1">bis <i>t</i> in s</label><input type="text" inputmode="decimal" id="impT1" value="${fmt(IMP.t1,2)}"></div>
+        <div><label for="impR">Radius <i>r</i> in m (Achse → Sensor)</label><input type="text" inputmode="decimal" id="impR" value="${fmt(rDef,3)}" ${s===1 && f!=null ? "readonly" : ""}></div>
+      </div>
+      <p class="small" style="margin:8px 0 0">Im Bereich: ${seg.idx.length} Messpunkte${seg.idx.length ? `, <i>ω</i> ≈ ${fmt(mean(seg.idx.map(i => Math.abs(seg.w[i]))),2)} s⁻¹, <i>a</i> ≈ ${fmt(mean(seg.idx.map(i => Math.abs(seg.a[i]))),2)} m/s²` : ""}</p>
+      <div class="btnrow"><button class="btn primary" id="impAdd">In Messreihe ${s} übernehmen</button><button class="btn" id="impClose">Schließen</button></div>
+      <p class="small muted" style="margin-bottom:0">Habt ihr mehrere Drehzahlen in einer Aufnahme gemessen? Wählt nacheinander die Zeitbereiche aus und übernehmt jeden einzeln.</p>`;
+  }
+  box.innerHTML = h;
+  const on = (id, ev, fn) => { const el = $("#"+id); if(el) el.addEventListener(ev, fn); };
+  on("impClose", "click", () => { IMP.mode = null; renderImport(); });
+  on("hAdd", "click", () => {
+    const r = parseNum($("#hR").value), w = parseNum($("#hW").value);
+    const a = $("#hA").value.split(/[;\s]+/).filter(Boolean).map(parseNum).filter(v => isFinite(v)).slice(0, NVAL);
+    if(addRealRow({r, w, a, src:"hand"})){ $("#hW").value = ""; $("#hA").value = ""; }
+  });
+  on("impF", "change", e => { try{ selectImpFile(+e.target.value); }catch(err){ toast(err.message); } renderImport(); });
+  for(const [id, k] of [["impT","t"],["impW","w"],["impA","a"]]) on(id, "change", e => { IMP[k] = +e.target.value; renderImport(); });
+  on("impT0", "change", e => { const v = parseNum(e.target.value); if(isFinite(v)) IMP.t0 = v; renderImport(); });
+  on("impT1", "change", e => { const v = parseNum(e.target.value); if(isFinite(v)) IMP.t1 = v; renderImport(); });
+  on("impAdd", "click", () => {
+    const r = parseNum($("#impR").value);
+    const res = impRowFromSegment(r);
+    if(res.err){ toast(res.err); return; }
+    addRealRow(res.row);
+  });
+  if(IMP.mode === "file") drawImp();
+}
+function drawImp(){
+  const cv = $("#cvImp"); if(!cv) return;
+  const P = prep(cv); if(!P) return;
+  const {ctx, W, H} = P;
+  const t = IMP.cols[IMP.t], T0 = Math.min(...t), T1 = Math.max(...t);
+  const half = (W - 20)/2;
+  const plots = [{x:0, key:"a", label:"|a| in m/s²", color:css("--force")}, {x:half + 20, key:"w", label:"|ω| in s⁻¹", color:css("--accent")}];
+  const step = Math.max(1, Math.floor(t.length/1500));
+  for(const p of plots){
+    const v = IMP.cols[p.key === "a" ? IMP.a : IMP.w].map(Math.abs);
+    const box = {l:p.x + 46, t:8, w:half - 52, h:H - 40};
+    const xr = niceRange(T0, T1, 4), yr = niceRange(0, Math.max(...v)*1.1 || 1, 3);
+    const {X, Y} = axes(ctx, box, xr, yr, "t in s", p.label);
+    ctx.fillStyle = css("--accent"); ctx.globalAlpha = .13;
+    ctx.fillRect(X(clamp(IMP.t0, xr.lo, xr.hi)), box.t, X(clamp(IMP.t1, xr.lo, xr.hi)) - X(clamp(IMP.t0, xr.lo, xr.hi)), box.h); ctx.globalAlpha = 1;
+    ctx.save(); ctx.beginPath(); ctx.rect(box.l, box.t, box.w, box.h); ctx.clip();
+    ctx.strokeStyle = p.color; ctx.lineWidth = 1.3; ctx.beginPath();
+    for(let i = 0; i < t.length; i += step){ const px = X(t[i]), py = Y(v[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke(); ctx.restore();
+  }
+}
+/* ---- ZIP lesen (ohne Bibliothek; „deflate“ über DecompressionStream) ---- */
+function zipEntries(buf){
+  const dv = new DataView(buf); let eocd = -1;
+  for(let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--){ if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; } }
+  if(eocd < 0) throw new Error("ZIP-Datei beschädigt.");
+  const n = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true);
+  const out = [];
+  for(let k = 0; k < n; k++){
+    if(dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const fnl = dv.getUint16(p + 28, true), exl = dv.getUint16(p + 30, true), cml = dv.getUint16(p + 32, true), lho = dv.getUint32(p + 42, true);
+    out.push({name:new TextDecoder().decode(new Uint8Array(buf, p + 46, fnl)), method, csize, lho});
+    p += 46 + fnl + exl + cml;
+  }
+  return out;
+}
+async function zipRead(buf, f){
+  const dv = new DataView(buf);
+  const start = f.lho + 30 + dv.getUint16(f.lho + 26, true) + dv.getUint16(f.lho + 28, true);
+  const data = new Uint8Array(buf, start, f.csize);
+  if(f.method === 0) return new TextDecoder().decode(data);
+  if(f.method === 8){
+    if(!window.DecompressionStream) throw new Error("Dieser Browser kann ZIP-Dateien nicht entpacken. Bitte die CSV-Datei laden.");
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  }
+  throw new Error("Unbekanntes Packformat in der ZIP-Datei.");
 }
 
 /* ================================================================
@@ -1962,35 +2408,62 @@ const MATCH = {
     {id:"const", t:"Zentripetalbeschleunigung in Abhängigkeit von m (r, ω konstant)"}],
   why:{par:"<i>F</i> ~ <i>ω</i>²: Parabelast durch den Ursprung.", lin:"<i>F</i> ~ <i>ω</i>²: Ursprungsgerade, wenn man <i>ω</i>² aufträgt.", hyp:"<i>F</i> = <i>m</i>·<i>v</i>²/<i>r</i> ~ 1/<i>r</i>: Hyperbelast.", const:"<i>a</i><sub>Z</sub> = <i>ω</i>²·<i>r</i> hängt nicht von <i>m</i> ab: waagrechte Gerade."}
 };
+/* Rechenaufgaben mit wechselnden Zahlen: jede Aufgabe erzeugt ihre Werte aus einem gespeicherten Startwert */
+const pick = (rnd, lo, hi, step) => +(lo + step*Math.floor(rnd()*(Math.round((hi - lo)/step) + 1))).toFixed(6);
+const nf = (x, d) => fmt(x, d);
+const FZ = "<i>F</i><sub>Z</sub>", AZ = "<i>a</i><sub>Z</sub>";
 const CALC = [
-  {id:"b1", lvl:"b", t:"Ein Körper der Masse 0,50 kg bewegt sich mit der Bahngeschwindigkeit 4,0 m/s auf einer Kreisbahn mit dem Radius 0,80 m. Berechne den Betrag der Zentripetalkraft.",
-   ans:10, unit:"N", sym:"<i>F</i><sub>Z</sub>", tol:0.02, hint:"Verwende <i>F</i><sub>Z</sub> = <i>m</i> · <i>v</i>²/<i>r</i>.",
-   sol:`<div class="eq"><i>F</i><sub>Z</sub> = <i>m</i> · ${F("<i>v</i>²","<i>r</i>")} = 0,50 kg · ${F("(4,0 m/s)²","0,80 m")} = 0,50 kg · ${F("16 m²/s²","0,80 m")} = <b>10 N</b></div>`},
-  {id:"b2", lvl:"b", t:"Ein Smartphone liegt im Abstand 0,12 m von der Drehachse auf einem Drehteller, der sich mit der Winkelgeschwindigkeit 5,0 s⁻¹ dreht. Welche Zentripetalbeschleunigung misst der Sensor?",
-   ans:3.0, unit:"m/s²", sym:"<i>a</i><sub>Z</sub>", tol:0.02, hint:"<i>a</i><sub>Z</sub> = <i>ω</i>² · <i>r</i>.",
-   sol:`<div class="eq"><i>a</i><sub>Z</sub> = <i>ω</i>² · <i>r</i> = (5,0 s⁻¹)² · 0,12 m = 25 s⁻² · 0,12 m = <b>3,0 m/s²</b></div>`},
-  {id:"b3", lvl:"b", t:"Ein Körper (m = 0,20 kg) läuft mit der Winkelgeschwindigkeit 6,0 s⁻¹ auf einem Kreis mit dem Radius 15 cm um. Berechne die Zentripetalkraft.",
-   ans:1.08, unit:"N", sym:"<i>F</i><sub>Z</sub>", tol:0.03, hint:"Radius in Meter umrechnen: 15 cm = 0,15 m. Dann <i>F</i><sub>Z</sub> = <i>m</i> · <i>ω</i>² · <i>r</i>.",
-   sol:`<div class="eq"><i>F</i><sub>Z</sub> = <i>m</i> · <i>ω</i>² · <i>r</i> = 0,20 kg · (6,0 s⁻¹)² · 0,15 m = 0,20 kg · 36 s⁻² · 0,15 m ≈ <b>1,1 N</b></div>`},
-  {id:"s1", lvl:"s", t:"Ein Körper der Masse 0,30 kg braucht für einen Umlauf auf einem Kreis mit dem Radius 0,25 m genau 0,80 s. Berechne die Zentripetalkraft.",
-   ans:4.626, unit:"N", sym:"<i>F</i><sub>Z</sub>", tol:0.02, hint:"Berechne zuerst <i>ω</i> = 2π/<i>T</i>.",
-   sol:`<div class="eq"><i>ω</i> = ${F("2π","<i>T</i>")} = ${F("2π","0,80 s")} ≈ 7,85 s⁻¹</div><div class="eq"><i>F</i><sub>Z</sub> = <i>m</i> · <i>ω</i>² · <i>r</i> = 0,30 kg · (7,85 s⁻¹)² · 0,25 m ≈ <b>4,6 N</b></div>`},
-  {id:"s2", lvl:"s", t:"Ein Plattenspieler dreht sich mit 45 Umdrehungen pro Minute. Ein Smartphone-Sensor liegt 10 cm von der Achse entfernt. Welche Zentripetalbeschleunigung misst er?",
-   ans:2.2207, unit:"m/s²", sym:"<i>a</i><sub>Z</sub>", tol:0.025, hint:"Frequenz in Hz: <i>f</i> = 45/60 s = 0,75 Hz. Dann <i>ω</i> = 2π · <i>f</i>.",
-   sol:`<div class="eq"><i>f</i> = ${F("45","60 s")} = 0,75 Hz &nbsp;⟹&nbsp; <i>ω</i> = 2π · <i>f</i> ≈ 4,71 s⁻¹</div><div class="eq"><i>a</i><sub>Z</sub> = <i>ω</i>² · <i>r</i> = (4,71 s⁻¹)² · 0,10 m ≈ <b>2,2 m/s²</b></div>`},
-  {id:"s3", lvl:"s", t:"Auf einen Körper der Masse 0,40 kg, der sich auf einem Kreis mit dem Radius 1,2 m bewegt, wirkt eine Zentripetalkraft von 12 N. Wie groß ist seine Bahngeschwindigkeit?",
-   ans:6.0, unit:"m/s", sym:"<i>v</i>", tol:0.02, hint:"Stelle <i>F</i><sub>Z</sub> = <i>m</i> · <i>v</i>²/<i>r</i> nach <i>v</i> um.",
-   sol:`<div class="eq"><i>v</i> = √<span style="text-decoration:overline">${F("<i>F</i><sub>Z</sub> · <i>r</i>","<i>m</i>")}</span> = √<span style="text-decoration:overline">${F("12 N · 1,2 m","0,40 kg")}</span> = √<span style="text-decoration:overline">36 m²/s²</span> = <b>6,0 m/s</b></div>`},
-  {id:"k1", lvl:"k", t:"Die Winkelgeschwindigkeit wird verdreifacht und gleichzeitig der Radius halbiert; die Masse bleibt gleich. Um welchen Faktor ändert sich die Zentripetalkraft? (Gib den Faktor <i>F</i><sub>neu</sub>/<i>F</i><sub>alt</sub> an.)",
-   ans:4.5, unit:"", sym:"<i>F</i><sub>neu</sub>/<i>F</i><sub>alt</sub>", tol:0.01, hint:"Setze 3<i>ω</i> und <i>r</i>/2 in <i>F</i> = <i>m</i> · <i>ω</i>² · <i>r</i> ein und vergleiche.",
-   sol:`<div class="eq">${F("<i>F</i><sub>neu</sub>","<i>F</i><sub>alt</sub>")} = ${F("<i>m</i> · (3<i>ω</i>)² · <i>r</i>/2","<i>m</i> · <i>ω</i>² · <i>r</i>")} = 9 · ${F("1","2")} = <b>4,5</b></div>`},
-  {id:"k2", lvl:"k", t:"Ein Faden reißt bei einer Kraft von 20 N. Daran wird ein Körper (m = 0,25 kg) auf einer waagrechten Kreisbahn mit r = 0,50 m herumgeführt (Gewichtskraft vernachlässigt). Wie kurz darf die Umlaufdauer höchstens werden?",
-   ans:0.4967, unit:"s", sym:"<i>T</i><sub>min</sub>", tol:0.02, hint:"Berechne die größte zulässige Winkelgeschwindigkeit aus <i>F</i> = <i>m</i>·<i>ω</i>²·<i>r</i> und dann <i>T</i> = 2π/<i>ω</i>.",
-   sol:`<div class="eq"><i>ω</i><sub>max</sub> = √<span style="text-decoration:overline">${F("<i>F</i>","<i>m</i> · <i>r</i>")}</span> = √<span style="text-decoration:overline">${F("20 N","0,25 kg · 0,50 m")}</span> = √<span style="text-decoration:overline">160 s⁻²</span> ≈ 12,6 s⁻¹</div><div class="eq"><i>T</i><sub>min</sub> = ${F("2π","<i>ω</i><sub>max</sub>")} ≈ <b>0,50 s</b></div>`},
-  {id:"k3", lvl:"k", t:"Ein Smartphone-Sensor liegt 0,12 m von der Drehachse entfernt und zeigt eine Zentripetalbeschleunigung von 4,8 m/s² an. Wie lange dauert ein Umlauf des Drehtellers?",
-   ans:0.9935, unit:"s", sym:"<i>T</i>", tol:0.02, hint:"Aus <i>a</i> = <i>ω</i>² · <i>r</i> folgt <i>ω</i> = √(<i>a</i>/<i>r</i>), dann <i>T</i> = 2π/<i>ω</i>.",
-   sol:`<div class="eq"><i>ω</i> = √<span style="text-decoration:overline">${F("<i>a</i><sub>Z</sub>","<i>r</i>")}</span> = √<span style="text-decoration:overline">${F("4,8 m/s²","0,12 m")}</span> = √<span style="text-decoration:overline">40 s⁻²</span> ≈ 6,32 s⁻¹</div><div class="eq"><i>T</i> = ${F("2π","<i>ω</i>")} ≈ <b>0,99 s</b></div>`},
+  {id:"b1", lvl:"b", unit:"N", sym:FZ, tol:0.02, gen(rnd){
+    const m = pick(rnd,0.20,1.50,0.05), v = pick(rnd,2,8,0.5), r = pick(rnd,0.40,2.00,0.05), ans = m*v*v/r;
+    return {ans, t:`Ein Körper der Masse ${nf(m,2)} kg bewegt sich mit der Bahngeschwindigkeit ${nf(v,1)} m/s auf einer Kreisbahn mit dem Radius ${nf(r,2)} m. Berechne den Betrag der Zentripetalkraft.`,
+      hint:`Verwende ${FZ} = <i>m</i> · <i>v</i>²/<i>r</i>.`,
+      sol:`<div class="eq">${FZ} = <i>m</i> · ${F("<i>v</i>²","<i>r</i>")} = ${nf(m,2)} kg · ${F(`(${nf(v,1)} m/s)²`,`${nf(r,2)} m`)} = ${nf(m,2)} kg · ${F(`${fmtS(v*v,4)} m²/s²`,`${nf(r,2)} m`)} ≈ <b>${fmtS(ans,3)} N</b></div>`}; }},
+  {id:"b2", lvl:"b", unit:"m/s²", sym:AZ, tol:0.02, gen(rnd){
+    const r = pick(rnd,0.06,0.20,0.01), w = pick(rnd,2,8,0.5), ans = w*w*r;
+    return {ans, t:`Ein Smartphone liegt im Abstand ${nf(r,2)} m von der Drehachse auf einem Drehteller, der sich mit der Winkelgeschwindigkeit ${nf(w,1)} s⁻¹ dreht. Welche Zentripetalbeschleunigung misst der Sensor?`,
+      hint:`${AZ} = <i>ω</i>² · <i>r</i>.`,
+      sol:`<div class="eq">${AZ} = <i>ω</i>² · <i>r</i> = (${nf(w,1)} s⁻¹)² · ${nf(r,2)} m = ${fmtS(w*w,4)} s⁻² · ${nf(r,2)} m ≈ <b>${fmtS(ans,3)} m/s²</b></div>`}; }},
+  {id:"b3", lvl:"b", unit:"N", sym:FZ, tol:0.025, gen(rnd){
+    const m = pick(rnd,0.10,0.50,0.05), w = pick(rnd,3,9,0.5), rc = pick(rnd,10,40,5), r = rc/100, ans = m*w*w*r;
+    return {ans, t:`Ein Körper (<i>m</i> = ${nf(m,2)} kg) läuft mit der Winkelgeschwindigkeit ${nf(w,1)} s⁻¹ auf einem Kreis mit dem Radius ${nf(rc,0)} cm um. Berechne die Zentripetalkraft.`,
+      hint:`Radius in Meter umrechnen: ${nf(rc,0)} cm = ${nf(r,2)} m. Dann ${FZ} = <i>m</i> · <i>ω</i>² · <i>r</i>.`,
+      sol:`<div class="eq">${FZ} = <i>m</i> · <i>ω</i>² · <i>r</i> = ${nf(m,2)} kg · (${nf(w,1)} s⁻¹)² · ${nf(r,2)} m ≈ <b>${fmtS(ans,3)} N</b></div>`}; }},
+  {id:"s1", lvl:"s", unit:"N", sym:FZ, tol:0.02, gen(rnd){
+    const m = pick(rnd,0.10,0.80,0.05), r = pick(rnd,0.15,0.60,0.05), T = pick(rnd,0.50,2.00,0.05), w = TAU/T, ans = m*w*w*r;
+    return {ans, t:`Ein Körper der Masse ${nf(m,2)} kg braucht für einen Umlauf auf einem Kreis mit dem Radius ${nf(r,2)} m genau ${nf(T,2)} s. Berechne die Zentripetalkraft.`,
+      hint:`Berechne zuerst <i>ω</i> = 2π/<i>T</i>.`,
+      sol:`<div class="eq"><i>ω</i> = ${F("2π","<i>T</i>")} = ${F("2π",`${nf(T,2)} s`)} ≈ ${fmtS(w,3)} s⁻¹</div><div class="eq">${FZ} = <i>m</i> · <i>ω</i>² · <i>r</i> = ${nf(m,2)} kg · (${fmtS(w,3)} s⁻¹)² · ${nf(r,2)} m ≈ <b>${fmtS(ans,3)} N</b></div>`}; }},
+  {id:"s2", lvl:"s", unit:"m/s²", sym:AZ, tol:0.025, gen(rnd){
+    const rpm = [30,40,45,60][Math.floor(rnd()*4)], rc = pick(rnd,5,15,1), r = rc/100, f = rpm/60, w = TAU*f, ans = w*w*r;
+    return {ans, t:`Ein Drehteller dreht sich mit ${rpm} Umdrehungen pro Minute. Ein Smartphone-Sensor liegt ${nf(rc,0)} cm von der Achse entfernt. Welche Zentripetalbeschleunigung misst er?`,
+      hint:`Frequenz in Hz: <i>f</i> = ${rpm}/(60 s). Dann <i>ω</i> = 2π · <i>f</i>.`,
+      sol:`<div class="eq"><i>f</i> = ${F(String(rpm),"60 s")} = ${fmtS(f,3)} Hz &nbsp;⟹&nbsp; <i>ω</i> = 2π · <i>f</i> ≈ ${fmtS(w,3)} s⁻¹</div><div class="eq">${AZ} = <i>ω</i>² · <i>r</i> = (${fmtS(w,3)} s⁻¹)² · ${nf(r,2)} m ≈ <b>${fmtS(ans,3)} m/s²</b></div>`}; }},
+  {id:"s3", lvl:"s", unit:"m/s", sym:"<i>v</i>", tol:0.02, gen(rnd){
+    const m = pick(rnd,0.20,1.00,0.05), r = pick(rnd,0.5,2.0,0.1), v0 = pick(rnd,3,9,0.5);
+    const Fz = Math.max(0.1, +(m*v0*v0/r).toFixed(1)), ans = Math.sqrt(Fz*r/m);
+    return {ans, t:`Auf einen Körper der Masse ${nf(m,2)} kg, der sich auf einem Kreis mit dem Radius ${nf(r,1)} m bewegt, wirkt eine Zentripetalkraft von ${nf(Fz,1)} N. Wie groß ist seine Bahngeschwindigkeit?`,
+      hint:`Stelle ${FZ} = <i>m</i> · <i>v</i>²/<i>r</i> nach <i>v</i> um.`,
+      sol:`<div class="eq"><i>v</i> = √<span style="text-decoration:overline">${F(`${FZ} · <i>r</i>`,"<i>m</i>")}</span> = √<span style="text-decoration:overline">${F(`${nf(Fz,1)} N · ${nf(r,1)} m`,`${nf(m,2)} kg`)}</span> ≈ <b>${fmtS(ans,3)} m/s</b></div>`}; }},
+  {id:"k1", lvl:"k", unit:"", sym:`${F("<i>F</i><sub>neu</sub>","<i>F</i><sub>alt</sub>")}`, tol:0.01, gen(rnd){
+    const A = [[2,"verdoppelt"],[3,"verdreifacht"],[4,"vervierfacht"]][Math.floor(rnd()*3)];
+    const B = [[0.5,"halbiert","<i>r</i>/2"],[1/3,"gedrittelt","<i>r</i>/3"],[2,"verdoppelt","2<i>r</i>"],[3,"verdreifacht","3<i>r</i>"]][Math.floor(rnd()*4)];
+    const ans = A[0]*A[0]*B[0];
+    return {ans, t:`Die Winkelgeschwindigkeit wird ${A[1]} und gleichzeitig der Radius ${B[1]}; die Masse bleibt gleich. Um welchen Faktor ändert sich die Zentripetalkraft? (Gib <i>F</i><sub>neu</sub>/<i>F</i><sub>alt</sub> an.)`,
+      hint:`Setze ${A[0]}<i>ω</i> und ${B[2]} in <i>F</i> = <i>m</i> · <i>ω</i>² · <i>r</i> ein und vergleiche.`,
+      sol:`<div class="eq">${F("<i>F</i><sub>neu</sub>","<i>F</i><sub>alt</sub>")} = ${F(`<i>m</i> · (${A[0]}<i>ω</i>)² · ${B[2]}`,"<i>m</i> · <i>ω</i>² · <i>r</i>")} = ${A[0]*A[0]} · ${B[0] === 1/3 ? F("1","3") : nf(B[0], B[0] < 1 ? 1 : 0)} = <b>${fmtS(ans,3)}</b></div>`}; }},
+  {id:"k2", lvl:"k", unit:"s", sym:"<i>T</i><sub>min</sub>", tol:0.02, gen(rnd){
+    const Fm = pick(rnd,10,40,5), m = pick(rnd,0.10,0.50,0.05), r = pick(rnd,0.30,1.00,0.05), w = Math.sqrt(Fm/(m*r)), ans = TAU/w;
+    return {ans, t:`Ein Faden reißt bei einer Kraft von ${nf(Fm,0)} N. Daran wird ein Körper (<i>m</i> = ${nf(m,2)} kg) auf einer waagrechten Kreisbahn mit <i>r</i> = ${nf(r,2)} m herumgeführt (Gewichtskraft vernachlässigt). Wie kurz darf die Umlaufdauer höchstens werden?`,
+      hint:`Berechne die größte zulässige Winkelgeschwindigkeit aus <i>F</i> = <i>m</i>·<i>ω</i>²·<i>r</i> und dann <i>T</i> = 2π/<i>ω</i>.`,
+      sol:`<div class="eq"><i>ω</i><sub>max</sub> = √<span style="text-decoration:overline">${F("<i>F</i>","<i>m</i> · <i>r</i>")}</span> = √<span style="text-decoration:overline">${F(`${nf(Fm,0)} N`,`${nf(m,2)} kg · ${nf(r,2)} m`)}</span> ≈ ${fmtS(w,3)} s⁻¹</div><div class="eq"><i>T</i><sub>min</sub> = ${F("2π","<i>ω</i><sub>max</sub>")} ≈ <b>${fmtS(ans,3)} s</b></div>`}; }},
+  {id:"k3", lvl:"k", unit:"s", sym:"<i>T</i>", tol:0.02, gen(rnd){
+    const r = pick(rnd,0.08,0.18,0.01), a = pick(rnd,2,9,0.2), w = Math.sqrt(a/r), ans = TAU/w;
+    return {ans, t:`Ein Smartphone-Sensor liegt ${nf(r,2)} m von der Drehachse entfernt und zeigt eine Zentripetalbeschleunigung von ${nf(a,1)} m/s² an. Wie lange dauert ein Umlauf des Drehtellers?`,
+      hint:`Aus <i>a</i> = <i>ω</i>² · <i>r</i> folgt <i>ω</i> = √(<i>a</i>/<i>r</i>), dann <i>T</i> = 2π/<i>ω</i>.`,
+      sol:`<div class="eq"><i>ω</i> = √<span style="text-decoration:overline">${F(AZ,"<i>r</i>")}</span> = √<span style="text-decoration:overline">${F(`${nf(a,1)} m/s²`,`${nf(r,2)} m`)}</span> ≈ ${fmtS(w,3)} s⁻¹</div><div class="eq"><i>T</i> = ${F("2π","<i>ω</i>")} ≈ <b>${fmtS(ans,3)} s</b></div>`}; }},
 ];
+function calcSeed(id){ S.q.calcSeed = S.q.calcSeed || {}; if(!S.q.calcSeed[id]) S.q.calcSeed[id] = 1 + Math.floor(Math.random()*1e9); return S.q.calcSeed[id]; }
+function calcInst(c){ return c.gen(seeded(calcSeed(c.id))); }
 const LVLNAME = {b:"Basis", s:"Standard", k:"Knobel"};
 
 function shuffleOrder(){
@@ -2002,6 +2475,7 @@ function shuffleOrder(){
 function buildQ(){
   segInit("#qSeg", () => S.q.sub, v => { S.q.sub = v; renderQ(); saveHash(); });
   if(!Array.isArray(S.q.order) || S.q.order.length !== ORDER.length) S.q.order = shuffleOrder();
+  CALC.forEach(c => calcSeed(c.id));
 }
 function qScores(){
   const mcN = Object.keys(S.q.mc).length, mcR = MCQ.filter((q,i) => S.q.mc[i] === q.right).length;
@@ -2165,17 +2639,19 @@ function drawMatch(){
   }
 }
 function renderCalc(){
-  let h = `<div class="card"><h2>Rechenaufgaben</h2><p class="small muted" style="margin:0">Gib das Ergebnis als Zahl ein (Komma oder Punkt). Es wird mit einer Toleranz von etwa 2 % geprüft, damit Rundungen nicht stören. Bei jeder Aufgabe gibt es einen Tipp und einen vollständigen Lösungsweg.</p></div>`;
+  const lock = S.lockSol;
+  let h = `<div class="card"><h2>Rechenaufgaben</h2><p class="small muted" style="margin:0">Gib das Ergebnis als Zahl ein (Komma oder Punkt). Es wird mit einer Toleranz von etwa 2 % geprüft, damit Rundungen nicht stören. Jede Aufgabe hat eigene Zahlen – mit „Neue Zahlen“ bekommst du eine neue Variante.${lock ? " <b>Tipp und Lösungsweg erscheinen erst, nachdem du ein Ergebnis geprüft hast.</b>" : " Bei jeder Aufgabe gibt es einen Tipp und einen vollständigen Lösungsweg."}</p></div>`;
   for(const lv of ["b","s","k"]){
     h += `<h3 style="margin:16px 4px 8px"><span class="lvl ${lv}">${LVLNAME[lv]}</span></h3>`;
     CALC.filter(c => c.lvl === lv).forEach(c => {
-      const st = S.q.calc[c.id] || {};
-      h += `<div class="card task" data-calc="${c.id}"><div class="tt"><b>Aufgabe ${c.id.toUpperCase()}</b><span class="lvl ${lv}">${LVLNAME[lv]}</span></div>
-        <p style="margin:4px 0">${c.t}</p>
+      const st = S.q.calc[c.id] || {}, it = calcInst(c);
+      const open = !lock || st.tried;
+      h += `<div class="card task" data-calc="${c.id}"><div class="tt"><b>Aufgabe ${c.id.toUpperCase()}</b><span><button class="btn small" data-cnew title="Gleiche Aufgabe mit anderen Zahlen">↻ Neue Zahlen</button> <span class="lvl ${lv}">${LVLNAME[lv]}</span></span></div>
+        <p style="margin:4px 0">${it.t}</p>
         <div class="ansrow"><span class="eq" style="margin:0">${c.sym} =</span><input class="ans" type="text" inputmode="decimal" autocomplete="off" value="${st.v != null ? String(st.v).replace(/"/g,"") : ""}" aria-label="Ergebnis"> <span>${c.unit}</span>
-          <button class="btn primary small" data-ccheck>Prüfen</button><button class="btn small" data-chint>💡 Tipp</button></div>
-        <div data-cfb>${st.ok ? `<div class="fb ok"><b>Richtig!</b></div>` : st.wrong ? `<div class="fb bad"><b>Noch nicht richtig.</b> Prüfe Einheiten (z. B. cm → m) und Rechenweg.</div>` : ""}${st.hint ? `<div class="fb hint">${c.hint}</div>` : ""}</div>
-        <details class="sol" ${st.sol?"open":""}><summary>Lösungsweg anzeigen</summary><div class="solbody">${c.sol}</div></details></div>`;
+          <button class="btn primary small" data-ccheck>Prüfen</button><button class="btn small" data-chint ${open ? "" : "disabled title=\"erst nach dem ersten Prüfen\""}>💡 Tipp</button></div>
+        <div data-cfb>${st.ok ? `<div class="fb ok"><b>Richtig!</b></div>` : st.wrong ? `<div class="fb bad"><b>Noch nicht richtig.</b> Prüfe Einheiten (z. B. cm → m) und Rechenweg.</div>` : ""}${st.hint && open ? `<div class="fb hint">${it.hint}</div>` : ""}</div>
+        ${open ? `<details class="sol" ${st.sol?"open":""}><summary>Lösungsweg anzeigen</summary><div class="solbody">${it.sol}</div></details>` : `<p class="small muted" style="margin:8px 0 0">🔒 Lösungsweg nach dem ersten Prüfen.</p>`}</div>`;
     });
   }
   $("#qCalc").innerHTML = h;
@@ -2186,14 +2662,16 @@ function renderCalc(){
     const check = () => {
       const v = parseNum(inp.value), s = st(); s.v = inp.value;
       if(!isFinite(v)){ s.wrong = false; box.querySelector("[data-cfb]").innerHTML = `<div class="fb hint">Bitte eine Zahl eingeben.</div>`; return; }
-      s.ok = Math.abs(v - c.ans) <= c.tol*Math.abs(c.ans) + 1e-9; s.wrong = !s.ok;
+      const ans = calcInst(c).ans;
+      s.ok = Math.abs(v - ans) <= c.tol*Math.abs(ans) + 1e-9; s.wrong = !s.ok; s.tried = true;
       persist(); renderQ();
     };
     box.querySelector("[data-ccheck]").addEventListener("click", check);
     inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); check(); } });
     inp.addEventListener("change", () => { st().v = inp.value; persist(); });
     box.querySelector("[data-chint]").addEventListener("click", () => { st().hint = true; persist(); renderCalc(); });
-    box.querySelector("details").addEventListener("toggle", e => { st().sol = e.target.open; persist(); });
+    box.querySelector("[data-cnew]").addEventListener("click", () => { S.q.calcSeed[c.id] = 1 + Math.floor(Math.random()*1e9); S.q.calc[c.id] = {}; persist(); renderQ(); });
+    const det = box.querySelector("details"); if(det) det.addEventListener("toggle", e => { st().sol = e.target.open; persist(); });
   }
 }
 
@@ -2209,6 +2687,7 @@ function stateToHash(){
   if(S.tab === "aufgaben") p.set("teil", S.q.sub);
   if(S.predict) p.set("vorhersage", "1");
   if(S.allSteps) p.set("alles", "1");
+  if(S.lockSol) p.set("loesungen", "0");
   return p.toString();
 }
 function saveHash(){ try{ history.replaceState(null, "", "#" + stateToHash()); }catch(e){} }
@@ -2222,6 +2701,7 @@ function loadHash(){
   if(["mc","puzzle","calc"].includes(p.get("teil"))) S.q.sub = p.get("teil");
   S.predict = p.get("vorhersage") === "1";
   if(p.get("alles") === "1"){ S.allSteps = true; S.h.unlocked = 6; }
+  S.lockSol = p.get("loesungen") === "0";
 }
 async function shareLink(){
   const url = location.href.split("#")[0] + "#" + stateToHash();
@@ -2260,6 +2740,7 @@ function buildPrint(){
   const what = {m:"m verdoppelt (r, ω gleich)", w:"ω verdoppelt (m, r gleich)", r:"r verdoppelt (m, ω gleich)"};
   for(const hy of HYP) h += `<tr><td>${what[hy.k]}</td><td>${S.hyp[hy.k] == null ? "–" : hypText(S.hyp[hy.k])}</td><td>Kraft ${hypText(hy.right)}</td></tr>`;
   h += `</table>`;
+  if(S.hyp.why) h += `<p><b>Meine Begründung:</b> ${esc(S.hyp.why)}</p>`;
   // Herleitung
   h += `<h2>2 Herleitung</h2><p>Abgeschlossene Schritte: ${Math.min(5, S.h.unlocked - 1)} von 5.${S.h.unlocked >= 6 ? " Ergebnis: a<sub>Z</sub> = v²/r = ω²·r und F<sub>Z</sub> = m·v²/r = m·ω²·r." : ""}</p>`;
   // Messreihen
@@ -2270,7 +2751,7 @@ function buildPrint(){
     h += `<p><b>Messreihe ${s}</b> (${s===1 ? "r konstant" : "ω konstant"})${rows.length ? "" : ": keine Messwerte"}</p>`;
     if(rows.length){
       h += `<table><tr><th>Nr.</th><th>r in m</th><th>ω in s⁻¹</th><th>Einzelwerte a in m/s²</th><th>Median</th><th>Mittelwert</th><th>${s===1?"a/ω² in m":"a/r in s⁻²"}</th></tr>`;
-      rows.forEach((r,i) => { const md = rowAvg(r); h += `<tr><td>${i+1}</td><td>${fmt(r.r,3)}</td><td>${fmt(r.w,2)}</td><td>${r.a.map(x=>fmt(x,2)).join(" · ")}</td><td>${fmt(median(r.a),2)}</td><td>${fmt(mean(r.a),2)}</td><td>${fmtS(s===1 ? md/(r.w*r.w) : md/r.r,3)}</td></tr>`; });
+      rows.forEach((r,i) => { const md = rowAvg(r); h += `<tr><td>${i+1}${r.src === "phyphox" ? " (phyphox)" : r.src === "hand" ? " (von Hand)" : ""}</td><td>${fmt(r.r,3)}</td><td>${fmt(r.w,2)}</td><td>${r.a.map(x=>fmt(x,2)).join(" · ")}</td><td>${fmt(median(r.a),2)}</td><td>${fmt(mean(r.a),2)}</td><td>${fmtS(s===1 ? md/(r.w*r.w) : md/r.r,3)}</td></tr>`; });
       h += `</table>`;
     }
   }
@@ -2326,7 +2807,7 @@ function frame(ts){
   lastTs = ts;
   stepX(dt);
   if(!document.hidden){
-    if(S.tab === "einstieg"){ stepE(dt); drawE(); if(S.e.cut && !S.e.playing) renderE(); }
+    if(S.tab === "einstieg"){ stepE(dt); drawE(); }
     else if(S.tab === "herleitung"){ if(stepH(dt)) drawH(); }
     else if(S.tab === "experiment"){ drawX(); liveAcc += dt; if(liveAcc > 0.1){ liveAcc = 0; drawXLive(); } }
   }
@@ -2335,7 +2816,7 @@ function frame(ts){
 function redrawCurrent(){
   if(S.tab === "einstieg") drawE();
   else if(S.tab === "herleitung") drawH();
-  else if(S.tab === "experiment"){ drawX(); drawXLive(); }
+  else if(S.tab === "experiment"){ drawX(); drawXLive(); drawXd(); drawImp(); }
   else if(S.tab === "unsicherheit") drawU();
   else if(S.tab === "auswertung") renderA();
   else if(S.tab === "aufgaben" && S.q.sub === "puzzle") drawMatch();
@@ -2343,6 +2824,7 @@ function redrawCurrent(){
 for(const b of $$("#tabs button")) b.addEventListener("click", () => showTab(b.dataset.tab));
 for(const c of $$(".optPredict")) c.addEventListener("change", e => setPredict(e.target.checked));
 for(const b of $$(".revealBtn")) b.addEventListener("click", () => { if(S.tab === "unsicherheit") S.revealed.u = true; else S.revealed.a = true; renderTab(); });
+for(const cv of $$("canvas")) cv.setAttribute("role", "img");
 $("#shareBtn").addEventListener("click", shareLink);
 $("#pdfName").addEventListener("change", persist);
 document.addEventListener("keydown", e => {
@@ -2369,6 +2851,7 @@ buildE(); buildH(); buildX(); buildU(); buildA(); buildQ();
 loadHash();
 for(const c of $$(".optPredict")) c.checked = S.predict;
 S.x.motor = S.x.w;
+if(matchMedia("(max-height:900px) and (min-width:900px)").matches) $("#xLiveBox").open = false;
 genU();
 showTab(S.tab, false);
 requestAnimationFrame(frame);

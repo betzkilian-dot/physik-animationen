@@ -31,3 +31,10 @@ aktualisiert die Seite danach automatisch (dauert etwa eine Minute).
 - **Link teilen:** öffnet die Animation mit genau den eingestellten Werten (die Werte stehen hinter dem `#` in der Adresse) – z. B. für Aufgaben in Moodle oder Teams.
 - **Vorhersage-Modus:** Ergebnisse sind verdeckt, bis die Schüler auf „Aufdecken“ tippen.
 - **iPad:** große Regler mit −/+-Tasten; über Teilen → „Zum Home-Bildschirm“ starten die Animationen wie eine App im Vollbild.
+
+### Zusätze für „Die Zentripetalkraft“
+
+- `alles=1` – alle Herleitungsschritte sofort freigeschaltet (z. B. zum Vorführen).
+- `loesungen=0` – Tipps und Lösungswege der Rechenaufgaben erst nach dem ersten Prüfen (für Hausaufgaben).
+- Beispiel: `animationen/zentripetalkraft/#tab=aufgaben&teil=calc&loesungen=0`
+- Eigene Messungen: phyphox-Export (CSV oder ZIP) im Reiter „Experiment“ laden oder Werte von Hand eintragen.
