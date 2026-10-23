@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Überholvorgang – Physik-Animationen</title>
+<meta name="description" content="Interaktive Simulation eines Überholvorgangs mit Draufsicht, Zeit-Ort- und Zeit-Geschwindigkeit-Diagramm.">
+<style>
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#16191d; --muted:#5d6670; --line:#dde1e6; --soft:#f6f7f9;
+  --accent:#1f4fd1; --accent-ink:#ffffff;
+  --car-a:#2563eb; --car-b:#d9590b; --car-c:#7c3aed;
+  --start:#15803d; --end:#c81e1e; --warn:#b45309;
+  --grid:#eceef1; --axis:#8f98a3;
+  --road:#575b61; --grass:#a6c793; --grass2:#9abd86; --lane:#f8f8f8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121417; --panel:#1b1e23; --ink:#e7eaee; --muted:#9aa3ad; --line:#2c3138; --soft:#22262c;
+    --accent:#7ea2ff; --accent-ink:#0d1220;
+    --car-a:#5b8cff; --car-b:#ff8a3d; --car-c:#a78bfa;
+    --start:#34c46b; --end:#f05a5a; --warn:#f0a43a;
+    --grid:#262a30; --axis:#66707b;
+    --road:#3b3f45; --grass:#3d5634; --grass2:#38502f; --lane:#d9d9d9;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}
+a{color:var(--accent)}
+header.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:14px 20px 6px;max-width:1500px;margin:0 auto}
+header.top a.back{font-size:14px;text-decoration:none}
+header.top a.back:hover{text-decoration:underline}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px}
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-areas:"settings view" "settings charts";gap:16px;padding:10px 20px 30px;max-width:1500px;margin:0 auto;align-items:start}
+#settings{grid-area:settings;position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto}
+#view{grid-area:view}
+#charts{grid-area:charts}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"view" "settings" "charts";padding:8px 12px 24px;gap:12px}
+  #settings{position:static;max-height:none}
+  header.top{padding:12px 14px 4px}
+}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card + .card{margin-top:12px}
+.card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h3{font-size:14px;margin:14px 0 6px}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;flex:none}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* Segmented controls */
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--soft)}
+.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:7px 6px;font:inherit;font-size:13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.row{margin:10px 0}
+.row > label.lbl, .lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+select{width:100%;font:inherit;font-size:14px;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:var(--soft);color:var(--ink)}
+
+/* Parameter fields */
+.field{margin:9px 0}
+.field .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.field .head span{font-size:13px}
+.num{display:flex;align-items:center;gap:4px}
+.num input{width:76px;text-align:right;font:inherit;font-size:14px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--soft);color:var(--ink)}
+.num em{font-style:normal;font-size:12px;color:var(--muted);min-width:34px}
+input[type=range]{width:100%;margin:4px 0 0;accent-color:var(--accent)}
+.veh{border-left:4px solid;padding-left:10px;margin-top:14px}
+.veh h3{margin-top:0}
+.check{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:14px;cursor:pointer}
+.check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px}
+
+/* View */
+.viewhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.badge.run .dot{background:var(--start)}
+.badge.done .dot{background:var(--accent)}
+.badge.crash{color:var(--end)} .badge.crash .dot{background:var(--end)}
+canvas{display:block;width:100%}
+#road{height:180px;border-radius:8px;touch-action:none}
+.player{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.btn{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);min-width:104px;justify-content:center}
+.btn:focus-visible, .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#tslider{flex:1;min-width:140px}
+.time{font-variant-numeric:tabular-nums;font-weight:600;min-width:78px;text-align:right}
+.player select{width:auto;padding:5px 6px}
+table.live{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px;font-variant-numeric:tabular-nums}
+table.live th,table.live td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+table.live th:first-child, table.live td:first-child{text-align:left}
+table.live thead th{white-space:normal;border-top:0;color:var(--muted);font-weight:500;font-size:12.5px}
+.tablewrap{overflow-x:auto}
+.gapline{margin-top:6px;font-size:13.5px;color:var(--muted)}
+.gapline b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* Charts */
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--car-c) 0 5px,transparent 5px 8px)!important}
+#stChart{height:330px;touch-action:none;cursor:crosshair}
+#vtChart{height:250px;touch-action:none;cursor:crosshair}
+.charthint{font-size:12.5px;color:var(--muted);margin-top:4px}
+
+/* Kennwerte */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.stat{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .k{font-size:12.5px;color:var(--muted)}
+.stat .v{font-size:19px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:2px}
+.stat .d{font-size:12.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.stat.start{border-left:4px solid var(--start)} .stat.end{border-left:4px solid var(--end)}
+.stat.ok .v{color:var(--start)} .stat.warn .v{color:var(--warn)} .stat.bad .v{color:var(--end)}
+.note{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+details{margin-top:12px}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+.eq{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:16.5px;margin:6px 0;overflow-x:auto;white-space:nowrap}
+.eq sub{font-size:.7em}
+.defs p{margin:6px 0;font-size:14px}
+footer{max-width:1500px;margin:0 auto;padding:0 20px 30px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="back" href="../../index.html">← Alle Animationen</a>
+  <h1>Der Überholvorgang</h1>
+  <span class="sub">Zeit-Ort- und Zeit-Geschwindigkeit-Diagramm · Jahrgangsstufe 10</span>
+</header>
+
+<div class="layout">
+  <!-- ============ Einstellungen ============ -->
+  <aside id="settings">
+    <div class="card">
+      <h2>Einstellungen</h2>
+      <div class="row">
+        <label class="lbl" for="preset">Beispiel laden</label>
+        <select id="preset"></select>
+      </div>
+      <div class="row">
+        <span class="lbl">Einheit der Geschwindigkeit</span>
+        <div class="seg" id="unitSeg" role="group" aria-label="Einheit">
+          <button data-v="kmh">km/h</button><button data-v="ms">m/s</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="lbl">Einfacher Sicherheitsabstand nach</span>
+        <div class="seg" id="ruleSeg" role="group" aria-label="Sicherheitsabstand">
+          <button data-v="tacho">„halber Tacho“</button><button data-v="2s">2-Sekunden-Regel</button>
+        </div>
+        <div class="small muted" id="ruleText" style="margin-top:5px"></div>
+      </div>
+
+      <div class="veh" style="border-color:var(--car-a)">
+        <h3>Fahrzeug A <span class="muted" style="font-weight:400">(überholt)</span></h3>
+        <div id="fieldsA"></div>
+      </div>
+      <div class="veh" style="border-color:var(--car-b)">
+        <h3>Fahrzeug B <span class="muted" style="font-weight:400">(wird überholt)</span></h3>
+        <div id="fieldsB"></div>
+      </div>
+      <div class="veh" style="border-color:var(--car-c)">
+        <label class="check"><input type="checkbox" id="cOn"> <span><b>Gegenverkehr C</b> einblenden</span></label>
+        <div id="fieldsC"></div>
+      </div>
+
+      <h3>Anzeige</h3>
+      <label class="check"><input type="checkbox" id="optMarkers" checked> <span>Beginn und Ende des Überholvorgangs in den Diagrammen markieren</span></label>
+      <label class="check"><input type="checkbox" id="optZones" checked> <span>Sicherheitsabstände in der Draufsicht zeigen</span></label>
+      <label class="check"><input type="checkbox" id="optLive" checked> <span>Diagramme während der Animation zeichnen</span></label>
+      <p class="small muted" style="margin:10px 0 0">Der Ort <i>x</i> gibt jeweils die Position der <b>Fahrzeugfront</b> an.</p>
+    </div>
+  </aside>
+
+  <!-- ============ Draufsicht ============ -->
+  <section id="view">
+    <div class="card">
+      <div class="viewhead">
+        <h2 style="margin:0">Draufsicht</h2>
+        <span class="badge" id="phase"><span class="dot"></span><span id="phaseText"></span></span>
+      </div>
+      <canvas id="road" aria-label="Draufsicht auf die Straße mit den Fahrzeugen"></canvas>
+      <div class="player">
+        <button class="btn primary" id="play">▶ Start</button>
+        <button class="btn" id="reset" title="Zurück auf t = 0">↺ Zurück</button>
+        <input type="range" id="tslider" min="0" max="1000" value="0" aria-label="Zeit">
+        <span class="time" id="tlabel">t = 0,0 s</span>
+        <label class="small muted">Tempo
+          <select id="speed">
+            <option value="0.25">0,25×</option><option value="0.5">0,5×</option>
+            <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+          </select>
+        </label>
+      </div>
+      <div class="tablewrap">
+        <table class="live" id="live"></table>
+      </div>
+      <div class="gapline" id="gapline"></div>
+    </div>
+  </section>
+
+  <!-- ============ Diagramme ============ -->
+  <section id="charts">
+    <div class="card">
+      <h2>Zeit-Ort-Diagramm</h2>
+      <div class="legend" id="legend1"></div>
+      <canvas id="stChart" aria-label="Zeit-Ort-Diagramm"></canvas>
+      <div class="charthint">Tipp: Ins Diagramm klicken oder ziehen, um zu einem Zeitpunkt zu springen.</div>
+    </div>
+    <div class="card">
+      <h2>Zeit-Geschwindigkeit-Diagramm</h2>
+      <div class="legend" id="legend2"></div>
+      <canvas id="vtChart" aria-label="Zeit-Geschwindigkeit-Diagramm"></canvas>
+      <div class="charthint" id="vtHint"></div>
+    </div>
+    <div class="card">
+      <h2>Kennwerte des Überholvorgangs</h2>
+      <div id="stats"></div>
+      <details id="formulas">
+        <summary>Bewegungsfunktionen und Definitionen anzeigen</summary>
+        <div id="eqs" style="margin-top:8px"></div>
+        <div class="defs" id="defs"></div>
+      </details>
+    </div>
+  </section>
+</div>
+<footer>Physik-Animationen · Modell: geradlinige Bewegungen mit konstanter Beschleunigung; ein bremsendes Fahrzeug bleibt nach dem Anhalten stehen.</footer>
+
+<script>
+"use strict";
+/* ================================================================
+   Zustand
+   ================================================================ */
+const TMAX = 180;      // längster betrachteter Zeitraum in s
+const TAU  = 1.5;      // Dauer eines Spurwechsels (nur Darstellung) in s
+
+const PRESETS = [
+  {id:"lkw",   name:"Pkw überholt Lkw (konstante Geschwindigkeiten)",
+   A:{x0:0,v0:100,a:0,L:4.5}, B:{x0:75,v0:80,a:0,L:12}, C:{on:false,x0:1300,v0:100,L:4.5}},
+  {id:"beschl",name:"Pkw beschleunigt beim Überholen",
+   A:{x0:0,v0:80,a:1.2,L:4.5}, B:{x0:75,v0:80,a:0,L:12}, C:{on:false,x0:1300,v0:100,L:4.5}},
+  {id:"gegen", name:"Mit Gegenverkehr – reicht der Platz?",
+   A:{x0:0,v0:100,a:0,L:4.5}, B:{x0:75,v0:80,a:0,L:12}, C:{on:true,x0:1300,v0:100,L:4.5}},
+  {id:"autob", name:"Autobahn: Pkw überholt Pkw",
+   A:{x0:0,v0:140,a:0,L:4.5}, B:{x0:90,v0:110,a:0,L:4.5}, C:{on:false,x0:1300,v0:100,L:4.5}},
+];
+
+const S = {
+  unit:"kmh", rule:"tacho",
+  A:{}, B:{}, C:{},
+  showMarkers:true, showZones:true, liveDraw:true,
+  t:0, playing:false, speed:1, preset:"lkw"
+};
+let M = {};   // berechnetes Modell (Zeitpunkte usw.)
+
+/* ================================================================
+   Hilfsfunktionen
+   ================================================================ */
+const $ = s => document.querySelector(s);
+const clamp = (x,a,b) => Math.min(Math.max(x,a),b);
+function fmt(x, d=1){
+  if(!isFinite(x)) return "–";
+  if(Math.abs(x) < 0.5*Math.pow(10,-d)) x = 0;
+  return x.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+const vF = v => S.unit==="kmh" ? v*3.6 : v;               // Anzeige
+const vU = () => S.unit==="kmh" ? "km/h" : "m/s";
+const fv = (v,d) => fmt(vF(v), d ?? (S.unit==="kmh"?0:1)) + " " + vU();
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* ================================================================
+   Physik
+   ================================================================ */
+function pos(P,t){
+  if(P.a < 0){ const tS = P.v0/(-P.a); if(t > tS) t = tS; }
+  return P.x0 + P.v0*t + 0.5*P.a*t*t;
+}
+function vel(P,t){ return P.a < 0 ? Math.max(0, P.v0 + P.a*t) : P.v0 + P.a*t; }
+function dSafe(v){ return S.rule==="tacho" ? v*3.6/2 : 2*v; }
+const posC = t => S.C.x0 - S.C.v0*t;
+
+// Lücke zwischen Front A und Heck B minus Sicherheitsabstand von A ( ≤ 0  → Beginn )
+const gStart = t => (pos(S.B,t) - S.B.L) - pos(S.A,t) - dSafe(vel(S.A,t));
+// Lücke zwischen Heck A und Front B minus Sicherheitsabstand von B ( ≥ 0 → Ende )
+const gEnd   = t => (pos(S.A,t) - S.A.L) - pos(S.B,t) - dSafe(vel(S.B,t));
+
+function firstTime(test, t0, t1, dt=0.01){
+  if(test(t0)) return t0;
+  let prev = t0;
+  for(let t = t0+dt; t <= t1+1e-9; t += dt){
+    if(test(t)){
+      let lo = prev, hi = t;
+      for(let i=0;i<40;i++){ const mid=(lo+hi)/2; if(test(mid)) hi=mid; else lo=mid; }
+      return hi;
+    }
+    prev = t;
+  }
+  return null;
+}
+const smooth = u => { u = clamp(u,0,1); return u*u*(3-2*u); };
+function lat(t){ // 0 = rechte Spur, 1 = linke Spur
+  if(M.ts == null) return 0;
+  const up = smooth((t - M.ts)/TAU);
+  const down = M.te != null ? smooth((t - M.te)/TAU) : 0;
+  return up - down;
+}
+
+function computeModel(){
+  const A=S.A, B=S.B, C=S.C;
+  M = {ts:null, te:null, tc:null, T:40, msg:null, immediate:false, minGap:null, minGapT:null};
+  if(pos(A,0) > pos(B,0) - B.L){
+    M.msg = "Fahrzeug A muss zu Beginn hinter Fahrzeug B fahren. Verkleinere den Startort von A oder vergrößere den Startort von B.";
+  } else {
+    M.ts = firstTime(t => gStart(t) <= 0, 0, TMAX);
+    if(M.ts === 0) M.immediate = true;
+    if(M.ts != null) M.te = firstTime(t => gEnd(t) >= 0, M.ts, TMAX);
+  }
+  if(M.te != null)      M.T = Math.min(TMAX, M.te + Math.max(4, 0.25*M.te));
+  else if(M.ts != null) M.T = Math.min(TMAX, Math.max(40, M.ts + 40));
+  else                  M.T = 40;
+
+  if(C.on && M.ts != null){
+    const tEndCheck = M.T;
+    M.tc = firstTime(t => {
+      if(lat(t) <= 0.35) return false;
+      const xa = pos(A,t), xc = posC(t);
+      return xa >= xc && (xa - A.L) <= xc + C.L;
+    }, M.ts, tEndCheck, 0.005);
+    if(M.tc != null){ M.T = M.tc; }
+    else {
+      // kleinster Abstand (Front A – Front C) solange A auf der Gegenfahrbahn ist
+      let best = Infinity, bestT = null;
+      for(let t=M.ts; t<=tEndCheck; t+=0.01){
+        if(lat(t) <= 0.35) continue;
+        const g = posC(t) - pos(A,t);
+        if(g >= 0 && g < best){ best = g; bestT = t; }
+      }
+      if(bestT != null){ M.minGap = best; M.minGapT = bestT; }
+    }
+  }
+  S.t = clamp(S.t, 0, M.T);
+}
+
+/* ================================================================
+   Eingabefelder
+   ================================================================ */
+const FIELDS = {
+  A:[ {k:"x0",lab:"Startort x₀",unit:"m",min:-100,max:300,step:1,d:0},
+      {k:"v0",lab:"Anfangsgeschwindigkeit v₀",vel:true},
+      {k:"a", lab:"Beschleunigung a",unit:"m/s²",min:-4,max:4,step:0.1,d:1},
+      {k:"L", lab:"Fahrzeuglänge",unit:"m",min:3,max:20,step:0.5,d:1} ],
+  B:[ {k:"x0",lab:"Startort x₀",unit:"m",min:-50,max:400,step:1,d:0},
+      {k:"v0",lab:"Anfangsgeschwindigkeit v₀",vel:true},
+      {k:"a", lab:"Beschleunigung a",unit:"m/s²",min:-4,max:4,step:0.1,d:1},
+      {k:"L", lab:"Fahrzeuglänge",unit:"m",min:3,max:20,step:0.5,d:1} ],
+  C:[ {k:"x0",lab:"Startort x₀",unit:"m",min:100,max:2500,step:10,d:0},
+      {k:"v0",lab:"Geschwindigkeit (Betrag)",vel:true},
+      {k:"L", lab:"Fahrzeuglänge",unit:"m",min:3,max:20,step:0.5,d:1} ],
+};
+const fieldRefs = [];
+function buildFields(){
+  for(const veh of ["A","B","C"]){
+    const box = $("#fields"+veh);
+    for(const f of FIELDS[veh]){
+      const el = document.createElement("div");
+      el.className = "field";
+      const id = `f_${veh}_${f.k}`;
+      el.innerHTML = `<div class="head"><span><label for="${id}">${f.lab}</label></span>
+        <span class="num"><input type="number" id="${id}"><em></em></span></div>
+        <input type="range" aria-label="${f.lab} (Fahrzeug ${veh})">`;
+      box.appendChild(el);
+      const num = el.querySelector("input[type=number]"), rng = el.querySelector("input[type=range]"), em = el.querySelector("em");
+      const ref = {veh, f, num, rng, em};
+      fieldRefs.push(ref);
+      const set = (raw) => {
+        let x = parseFloat(String(raw).replace(",", "."));
+        if(!isFinite(x)) return;
+        if(f.vel){ x = S.unit==="kmh" ? x/3.6 : x; x = Math.max(0,x); }
+        S[veh][f.k] = x;
+        S.preset = "custom"; $("#preset").value = "custom";
+        onParamChange(ref);
+      };
+      rng.addEventListener("input", () => { set(rng.value); });
+      num.addEventListener("change", () => { set(num.value); });
+    }
+  }
+}
+function refreshFields(except){
+  for(const r of fieldRefs){
+    const f = r.f;
+    let min=f.min, max=f.max, step=f.step, d=f.d, unit=f.unit;
+    if(f.vel){
+      if(S.unit==="kmh"){ min=0; max=200; step=1; d=0; } else { min=0; max=56; step=0.1; d=1; }
+      unit = vU();
+    }
+    const val = f.vel ? vF(S[r.veh][f.k]) : S[r.veh][f.k];
+    r.rng.min=min; r.rng.max=max; r.rng.step=step;
+    r.num.step=step; r.em.textContent = unit;
+    if(r !== except || true){ r.rng.value = val; }
+    if(r !== except){ r.num.value = (Math.round(val/step)*step).toFixed(d); }
+    else if(document.activeElement !== r.num){ r.num.value = (Math.round(val/step)*step).toFixed(d); }
+  }
+  $("#fieldsC").style.display = S.C.on ? "" : "none";
+}
+
+function applyPreset(id){
+  const p = PRESETS.find(p => p.id===id); if(!p) return;
+  S.preset = id;
+  for(const v of ["A","B"]) S[v] = {x0:p[v].x0, v0:p[v].v0/3.6, a:p[v].a, L:p[v].L};
+  S.C = {on:p.C.on, x0:p.C.x0, v0:p.C.v0/3.6, L:p.C.L};
+  $("#cOn").checked = S.C.on;
+  S.t = 0; S.playing = false;
+  onParamChange();
+}
+
+function onParamChange(except){
+  computeModel();
+  refreshFields(except);
+  updateRuleText();
+  renderStatic();
+  render();
+}
+
+/* ================================================================
+   Zeichnen: Draufsicht
+   ================================================================ */
+function prep(cv){
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if(cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){
+    cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  return {ctx,W,H};
+}
+function rr(ctx,x,y,w,h,r){
+  r = Math.max(0, Math.min(r, w/2, h/2));
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function mix(hex, w, amt){ // hex mit Weiß (w=255) oder Schwarz (w=0) mischen
+  const n = parseInt(hex.replace("#",""),16);
+  const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  const m = c => Math.round(c + (w-c)*amt);
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+
+function drawVehicle(ctx, xf, len, y, dir, color, label, w){
+  const truck = len/w > 2.6 && w > 0 && len > 0 && arguments[7];
+  ctx.save();
+  ctx.translate(xf, y); ctx.scale(dir, 1);
+  // Schatten
+  ctx.fillStyle = "rgba(0,0,0,.28)"; rr(ctx,-len+1.5,-w/2+2,len,w,4); ctx.fill();
+  if(truck){
+    const cab = Math.max(len*0.17, 6);
+    ctx.fillStyle = mix(color,255,0.55); rr(ctx,-len,-w/2,len-cab-1.5,w,2); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = color; rr(ctx,-cab,-w/2+1,cab,w-2,3); ctx.fill();
+    ctx.fillStyle = "rgba(15,25,40,.65)"; ctx.fillRect(-cab*0.42,-w/2+3,cab*0.22,w-6);
+  } else {
+    ctx.fillStyle = color; rr(ctx,-len,-w/2,len,w,Math.min(w*0.32,len*0.22)); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.18)"; rr(ctx,-len*0.74,-w/2+3,len*0.42,w-6,3); ctx.fill();
+    ctx.fillStyle = "rgba(15,25,40,.65)";
+    ctx.fillRect(-len*0.34,-w/2+2.5,Math.max(2,len*0.1),w-5);
+    ctx.fillRect(-len*0.88,-w/2+3.5,Math.max(1.5,len*0.06),w-7);
+  }
+  // Scheinwerfer
+  ctx.fillStyle = "#fff6c2";
+  ctx.fillRect(-2.2,-w/2+2,2,3); ctx.fillRect(-2.2,w/2-5,2,3);
+  ctx.restore();
+  // Beschriftung
+  const cx = xf - dir*len/2;
+  ctx.font = "700 13px system-ui, sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  if(len >= 16){
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.strokeText(label,cx,y+0.5);
+    ctx.fillStyle = "#fff"; ctx.fillText(label,cx,y+0.5);
+  } else {
+    ctx.fillStyle = color; ctx.fillText(label,cx,y-w/2-8);
+  }
+}
+
+function drawRoad(){
+  const cv = $("#road");
+  const {ctx,W,H} = prep(cv);
+  const A=S.A, B=S.B, C=S.C, t=S.t;
+  const xa=pos(A,t), xb=pos(B,t), va=vel(A,t), vb=vel(B,t), da=dSafe(va), db=dSafe(vb);
+  const Z = S.showZones;
+
+  // Kamera: beide Fahrzeuge (und Sicherheitsabstände) im Bild
+  const minX = Math.min(xa-A.L, xb-B.L) - 12;
+  const maxX = Math.max(xa + (Z?da:0), xb + (Z?db:0)) + 12;
+  let span = Math.max(maxX - minX, 80);
+  let center = (minX + maxX)/2;
+  const MAXSPAN = 450;
+  if(span > MAXSPAN){
+    span = MAXSPAN;
+    const lo = xa + (Z?da:0) + 12 - span/2, hi = xa - A.L - 12 + span/2;
+    center = clamp(center, lo, hi);
+  }
+  const k = W/span, x0 = center - span/2;
+  const X = x => (x - x0)*k;
+
+  // Geometrie (quer zur Fahrtrichtung überhöht)
+  const roadTop = 34, laneH = Math.min(52, (H - roadTop - 22)/2);
+  const roadBot = roadTop + 2*laneH;
+  const yLeft = roadTop + laneH/2, yRight = roadTop + 1.5*laneH;
+  const wCar = laneH*0.5, wTruck = laneH*0.62;
+
+  // Gras + Straße
+  ctx.fillStyle = css("--grass"); ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = css("--grass2");
+  for(let s = Math.floor(x0/25)*25; s < x0+span+25; s += 25){ if(Math.round(s/25)%2===0) ctx.fillRect(X(s),0,25*k,H); }
+  ctx.fillStyle = css("--road"); ctx.fillRect(0,roadTop,W,roadBot-roadTop);
+  ctx.fillStyle = css("--lane");
+  ctx.fillRect(0,roadTop+3,W,2); ctx.fillRect(0,roadBot-5,W,2);
+  // Leitlinie (in Weltkoordinaten → Bewegung sichtbar)
+  for(let s = Math.floor(x0/12)*12; s < x0+span; s += 12){ ctx.fillRect(X(s), roadTop+laneH-1, 4*k, 2); }
+
+  // Kilometrierung
+  const steps = [10,20,25,50,100,200]; let st = steps.find(s => s*k >= 64) || 200;
+  ctx.font = "12px system-ui, sans-serif"; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+  for(let s = Math.ceil(x0/st)*st; s <= x0+span; s += st){
+    const px = X(s);
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(px-1.5, roadTop-11, 3, 9);
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(px-1.5, roadTop-11, 3, 3);
+    ctx.fillStyle = css("--ink"); ctx.fillText(fmt(s,0)+" m", px, roadTop-15);
+  }
+
+  const yA = yRight - lat(t)*laneH;
+
+  // Sicherheitsabstände
+  function zone(xFront, d, y, color, txt){
+    const px = X(xFront), w = d*k, h = laneH*0.72;
+    ctx.save();
+    ctx.globalAlpha = 0.22; ctx.fillStyle = color; ctx.fillRect(px, y-h/2, w, h);
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+    ctx.strokeRect(px+0.5, y-h/2+0.5, w-1, h-1); ctx.setLineDash([]);
+    ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.font="600 11.5px system-ui, sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    const labels = [txt[0], txt[1]];   // lang, kurz
+    const fit = labels.find(s => ctx.measureText(s).width + 10 < w);
+    if(fit) ctx.fillText(fit, px+w/2, y);
+    ctx.restore();
+  }
+  if(Z){
+    zone(xb, db, yRight, css("--car-b"), ["Sicherheitsabstand B: "+fmt(db,0)+" m", fmt(db,0)+" m"]);
+    zone(xa, da, yA,     css("--car-a"), ["Sicherheitsabstand A: "+fmt(da,0)+" m", fmt(da,0)+" m"]);
+  }
+
+  // Fahrzeuge
+  const truckB = B.L >= 7, truckA = A.L >= 7, truckC = C.L >= 7;
+  drawVehicle(ctx, X(xb), B.L*k, yRight, 1, css("--car-b"), "B", truckB?wTruck:wCar, truckB);
+  if(C.on){
+    const xc = posC(t);
+    if(X(xc) < W + 2 && X(xc + C.L) > -2){
+      drawVehicle(ctx, X(xc), C.L*k, yLeft, -1, css("--car-c"), "C", truckC?wTruck:wCar, truckC);
+    } else if(X(xc) >= W){
+      // Hinweis am rechten Rand
+      const txt = "C in " + fmt(xc - xa, 0) + " m";
+      ctx.font="600 12px system-ui, sans-serif"; const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = css("--car-c"); rr(ctx, W-tw-30, yLeft-11, tw+24, 22, 11); ctx.fill();
+      ctx.fillStyle="#fff"; ctx.textAlign="left"; ctx.textBaseline="middle";
+      ctx.fillText("◀ "+txt, W-tw-22, yLeft+0.5);
+    }
+  }
+  drawVehicle(ctx, X(xa), A.L*k, yA, 1, css("--car-a"), "A", truckA?wTruck:wCar, truckA);
+
+  // Kollision
+  if(M.tc != null && t >= M.tc - 1e-6){
+    const px = X(xa);
+    ctx.save();
+    ctx.fillStyle = "rgba(200,30,30,.18)"; ctx.fillRect(0,0,W,H);
+    ctx.translate(px, yLeft);
+    ctx.fillStyle = "#ffd23f"; ctx.strokeStyle = "#c81e1e"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for(let i=0;i<16;i++){ const r = i%2? 9:20, a = i*Math.PI/8; ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.font = "800 20px system-ui, sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.strokeText("Kollision!", W/2, H-12); ctx.fillStyle = "#c81e1e"; ctx.fillText("Kollision!", W/2, H-12);
+  }
+}
+
+/* ================================================================
+   Zeichnen: Diagramme
+   ================================================================ */
+function niceStep(x){
+  const e = Math.floor(Math.log10(x)), f = x/Math.pow(10,e);
+  const n = f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10;
+  return n*Math.pow(10,e);
+}
+function niceRange(lo, hi, n){
+  if(hi - lo < 1e-9){ hi = lo + 1; }
+  const step = niceStep((hi-lo)/n);
+  return {lo: Math.floor(lo/step)*step, hi: Math.ceil(hi/step)*step, step};
+}
+
+const charts = {};
+function drawChart(cv, o){
+  const {ctx,W,H} = prep(cv);
+  const m = {l:62, r:16, t:14, b:40};
+  const pw = W-m.l-m.r, ph = H-m.t-m.b;
+  const xr = niceRange(0, o.T, Math.max(3, Math.floor(pw/80)));
+  const yr = niceRange(o.yMin, o.yMax, Math.max(3, Math.floor(ph/48)));
+  const tMax = o.T;
+  const X = t => m.l + t/tMax*pw;
+  const Y = y => m.t + (1-(y-yr.lo)/(yr.hi-yr.lo))*ph;
+  charts[cv.id] = {m, pw, T:tMax};
+
+  // Gitter + Achsenbeschriftung
+  ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = css("--muted");
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for(let v = 0; v <= tMax + 1e-9; v += xr.step){
+    const px = Math.round(X(v))+0.5;
+    ctx.beginPath(); ctx.moveTo(px,m.t); ctx.lineTo(px,m.t+ph); ctx.stroke();
+    ctx.fillText(fmt(v, xr.step<1?1:0), px, m.t+ph+6);
+  }
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for(let v = yr.lo; v <= yr.hi + 1e-9; v += yr.step){
+    const py = Math.round(Y(v))+0.5;
+    ctx.beginPath(); ctx.moveTo(m.l,py); ctx.lineTo(m.l+pw,py); ctx.stroke();
+    ctx.fillText(fmt(v, yr.step<1?1:0), m.l-8, py);
+  }
+  // Achsen
+  ctx.strokeStyle = css("--axis"); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t+ph); ctx.lineTo(m.l+pw, m.t+ph); ctx.stroke();
+  if(yr.lo < 0 && yr.hi > 0){ ctx.beginPath(); ctx.moveTo(m.l, Y(0)); ctx.lineTo(m.l+pw, Y(0)); ctx.stroke(); }
+  ctx.fillStyle = css("--ink"); ctx.font = "italic 13px system-ui, sans-serif";
+  ctx.textAlign = "right"; ctx.textBaseline = "top";
+  ctx.fillText("t in s", m.l+pw, m.t+ph+22);
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.save(); ctx.translate(14, m.t+ph/2); ctx.rotate(-Math.PI/2); ctx.textAlign="center";
+  ctx.fillText(o.yLabel, 0, 0); ctx.restore();
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(m.l, m.t-2, pw+2, ph+4); ctx.clip();
+  const tVis = S.liveDraw ? S.t : tMax;
+  if(o.before) o.before(ctx, X, Y, tVis);
+  // Kurven
+  for(const s of o.series){
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.6; ctx.lineJoin="round";
+    ctx.setLineDash(s.dash || []);
+    ctx.beginPath();
+    const N = 400;
+    for(let i=0;i<=N;i++){
+      let tt = i/N*tMax; let last = false;
+      if(tt >= tVis){ tt = tVis; last = true; }
+      const px = X(tt), py = Y(s.f(tt));
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+      if(last) break;
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(o.after) o.after(ctx, X, Y, tVis);
+  // Zeitmarke
+  const pt = X(S.t);
+  ctx.strokeStyle = css("--ink"); ctx.globalAlpha = .35; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pt, m.t); ctx.lineTo(pt, m.t+ph); ctx.stroke(); ctx.globalAlpha = 1;
+  for(const s of o.series){
+    ctx.fillStyle = s.color; ctx.strokeStyle = css("--panel"); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(pt, Y(s.f(S.t)), 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function vLine(ctx, X, m, ph, t, color, label){
+  const px = X(t);
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(px, 14); ctx.lineTo(px, 14+ph); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.textBaseline="top";
+  const tw = ctx.measureText(label).width;
+  const right = px + tw + 12 < m.l + charts.__pw;
+  const lx = right ? px + 4 : px - tw - 12;
+  ctx.fillStyle = css("--panel"); ctx.globalAlpha=.9; ctx.fillRect(lx, 17, tw+8, 17); ctx.globalAlpha=1;
+  ctx.fillStyle = color; ctx.textAlign="left"; ctx.fillText(label, lx+4, 19);
+  ctx.restore();
+}
+function dot(ctx, x, y, color){
+  ctx.fillStyle = css("--panel"); ctx.beginPath(); ctx.arc(x,y,6,0,2*Math.PI); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x,y,5,0,2*Math.PI); ctx.stroke();
+}
+
+function rangeOf(fns, T){
+  let lo = Infinity, hi = -Infinity;
+  for(const f of fns){ for(let i=0;i<=300;i++){ const y = f(i/300*T); if(y<lo) lo=y; if(y>hi) hi=y; } }
+  return [lo, hi];
+}
+
+function drawCharts(){
+  const A=S.A, B=S.B, C=S.C, T=M.T;
+  const cA = css("--car-a"), cB = css("--car-b"), cC = css("--car-c"), cS = css("--start"), cE = css("--end");
+
+  // ---- Zeit-Ort ----
+  const sSeries = [
+    {f:t=>pos(B,t), color:cB},
+    {f:t=>pos(A,t), color:cA},
+  ];
+  if(C.on) sSeries.unshift({f:posC, color:cC, dash:[7,5]});
+  let [lo,hi] = rangeOf(sSeries.map(s=>s.f), T);
+  lo = Math.min(lo, 0); const pad = (hi-lo)*0.04; hi += pad;
+  const stCv = $("#stChart");
+  const stM = {l:62, r:16, t:14, b:40};
+  charts.__pw = stCv.clientWidth - stM.l - stM.r;
+  drawChart(stCv, {
+    T, yMin:lo, yMax:hi, yLabel:"x in m", series:sSeries,
+    after:(ctx,X,Y,tVis) => {
+      const ph = stCv.clientHeight - stM.t - stM.b;
+      if(S.showMarkers && M.ts != null && tVis >= M.ts){
+        vLine(ctx, X, stM, ph, M.ts, cS, "Beginn");
+        dot(ctx, X(M.ts), Y(pos(A,M.ts)), cS); dot(ctx, X(M.ts), Y(pos(B,M.ts)), cS);
+      }
+      if(S.showMarkers && M.te != null && tVis >= M.te){
+        vLine(ctx, X, stM, ph, M.te, cE, "Ende");
+        dot(ctx, X(M.te), Y(pos(A,M.te)), cE); dot(ctx, X(M.te), Y(pos(B,M.te)), cE);
+        // Überholweg am linken Rand
+        const y1 = Y(pos(A,M.ts)), y2 = Y(pos(A,M.te)), xl = stM.l + 10;
+        ctx.save();
+        ctx.strokeStyle = cA; ctx.globalAlpha=.6; ctx.setLineDash([2,3]); ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(stM.l, y1); ctx.lineTo(X(M.ts), y1); ctx.moveTo(stM.l, y2); ctx.lineTo(X(M.te), y2); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha=1; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(xl, y1); ctx.lineTo(xl, y2); ctx.stroke();
+        const ah = (y) => { const s = y===y2 ? 1 : -1; ctx.beginPath(); ctx.moveTo(xl-4, y+s*7); ctx.lineTo(xl, y); ctx.lineTo(xl+4, y+s*7); ctx.stroke(); };
+        if(Math.abs(y1-y2) > 18){ ah(y1); ah(y2); }
+        ctx.font="600 12px system-ui, sans-serif"; ctx.fillStyle=cA; ctx.textAlign="left"; ctx.textBaseline="middle";
+        ctx.fillText("Überholweg "+fmt(pos(A,M.te)-pos(A,M.ts),0)+" m", xl+8, (y1+y2)/2);
+        ctx.restore();
+      }
+      if(M.tc != null && tVis >= M.tc - 1e-6){
+        const px = X(M.tc), py = Y(pos(A,M.tc));
+        ctx.strokeStyle = cE; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(px-7,py-7); ctx.lineTo(px+7,py+7); ctx.moveTo(px+7,py-7); ctx.lineTo(px-7,py+7); ctx.stroke();
+        ctx.font="700 12px system-ui, sans-serif"; ctx.fillStyle=cE; ctx.textAlign="right"; ctx.textBaseline="bottom";
+        ctx.fillText("Kollision", px-8, py-8);
+      }
+    }
+  });
+
+  // ---- Zeit-Geschwindigkeit ----
+  const vSeries = [
+    {f:t=>vF(vel(B,t)), color:cB},
+    {f:t=>vF(vel(A,t)), color:cA},
+  ];
+  if(C.on) vSeries.unshift({f:()=>-vF(C.v0), color:cC, dash:[7,5]});
+  [lo,hi] = rangeOf(vSeries.map(s=>s.f), T);
+  lo = Math.min(lo, 0); hi = Math.max(hi, 0) + (hi-lo)*0.06 + 0.5;
+  const vtCv = $("#vtChart");
+  drawChart(vtCv, {
+    T, yMin:lo, yMax:hi, yLabel:"v in "+vU(), series:vSeries,
+    before:(ctx,X,Y,tVis) => {
+      if(S.showMarkers && M.ts != null && M.te != null && tVis > M.ts){
+        const t2 = Math.min(M.te, tVis);
+        ctx.fillStyle = cA; ctx.globalAlpha = .16;
+        ctx.beginPath(); ctx.moveTo(X(M.ts), Y(0));
+        for(let i=0;i<=80;i++){ const tt = M.ts + (t2-M.ts)*i/80; ctx.lineTo(X(tt), Y(vF(vel(A,tt)))); }
+        ctx.lineTo(X(t2), Y(0)); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+        if(tVis >= M.te){
+          const tm = (M.ts+M.te)/2, py = (Y(0) + Y(vF(vel(A,tm))))/2;
+          ctx.font="600 12px system-ui, sans-serif"; ctx.fillStyle=cA; ctx.textAlign="center"; ctx.textBaseline="middle";
+          if(X(M.te)-X(M.ts) > 130) ctx.fillText("Fläche = Überholweg", X(tm), py);
+        }
+      }
+    },
+    after:(ctx,X,Y,tVis) => {
+      const ph = vtCv.clientHeight - 14 - 40;
+      if(S.showMarkers && M.ts != null && tVis >= M.ts){ vLine(ctx, X, {l:62}, ph, M.ts, cS, "Beginn"); dot(ctx, X(M.ts), Y(vF(vel(A,M.ts))), cS); }
+      if(S.showMarkers && M.te != null && tVis >= M.te){ vLine(ctx, X, {l:62}, ph, M.te, cE, "Ende");  dot(ctx, X(M.te), Y(vF(vel(A,M.te))), cE); }
+    }
+  });
+  $("#vtHint").innerHTML = (S.showMarkers && M.te!=null ? "Die blau getönte Fläche unter dem Graphen von A entspricht dem Überholweg. " : "") +
+    (C.on ? "Der Gegenverkehr fährt entgegen der x-Richtung und hat deshalb eine negative Geschwindigkeit." : "");
+}
+
+/* ================================================================
+   Texte, Kennwerte, Live-Werte
+   ================================================================ */
+function updateRuleText(){
+  $("#ruleText").innerHTML = S.rule==="tacho"
+    ? "Sicherheitsabstand in m = halber Zahlenwert der Geschwindigkeit in km/h (z. B. 100 km/h → 50 m)."
+    : "Sicherheitsabstand = Strecke, die in 2 s zurückgelegt wird: <i>d</i> = <i>v</i> · 2 s.";
+  for(const b of document.querySelectorAll("#unitSeg button")) b.setAttribute("aria-pressed", b.dataset.v===S.unit);
+  for(const b of document.querySelectorAll("#ruleSeg button")) b.setAttribute("aria-pressed", b.dataset.v===S.rule);
+}
+
+function legendHTML(){
+  let h = `<span><i style="background:var(--car-a)"></i>Fahrzeug A</span><span><i style="background:var(--car-b)"></i>Fahrzeug B</span>`;
+  if(S.C.on) h += `<span><i class="dash"></i>Gegenverkehr C</span>`;
+  if(S.showMarkers) h += `<span><i style="background:var(--start)"></i>Beginn</span><span><i style="background:var(--end)"></i>Ende</span>`;
+  return h;
+}
+
+function stat(k, v, d, cls=""){ return `<div class="stat ${cls}"><div class="k">${k}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`; }
+
+function renderStatic(){
+  const A=S.A, B=S.B, C=S.C;
+  $("#legend1").innerHTML = legendHTML();
+  $("#legend2").innerHTML = legendHTML();
+
+  // Kennwerte
+  let h = "";
+  if(M.msg){ h = `<div class="note">${M.msg}</div>`; }
+  else if(M.ts == null){
+    h = `<div class="note">Im betrachteten Zeitraum (bis ${TMAX} s) kommt Fahrzeug A nicht bis auf den Sicherheitsabstand an Fahrzeug B heran – es findet kein Überholvorgang statt. Ist A schneller als B?</div>`;
+  } else {
+    h += `<div class="stats">`;
+    h += stat("Beginn des Überholvorgangs", "t = "+fmt(M.ts,1)+" s", "Ort von A: x = "+fmt(pos(A,M.ts),0)+" m", "start");
+    if(M.te != null){
+      h += stat("Ende des Überholvorgangs", "t = "+fmt(M.te,1)+" s", "Ort von A: x = "+fmt(pos(A,M.te),0)+" m", "end");
+      h += stat("Überholdauer Δt", fmt(M.te-M.ts,1)+" s", "Δt = t<sub>Ende</sub> − t<sub>Beginn</sub>");
+      h += stat("Überholweg von A", fmt(pos(A,M.te)-pos(A,M.ts),0)+" m", "Strecke, die A in Δt zurücklegt");
+      h += stat("Weg von B in dieser Zeit", fmt(pos(B,M.te)-pos(B,M.ts),0)+" m", "");
+      h += stat("Geschwindigkeit von A", fmt(vF(vel(A,M.ts)), S.unit==="kmh"?0:1)+" → "+fv(vel(A,M.te)), "bei Beginn → bei Ende");
+    } else {
+      h += stat("Ende des Überholvorgangs", "–", M.tc!=null ? "wegen der Kollision nicht erreicht" : "wird im betrachteten Zeitraum nicht erreicht", "end");
+    }
+    if(C.on){
+      if(M.tc != null) h += stat("Gegenverkehr", "Kollision!", "bei t = "+fmt(M.tc,1)+" s, x = "+fmt(pos(A,M.tc),0)+" m", "bad");
+      else if(M.minGap != null){
+        const tg = M.minGap/(vel(A,M.minGapT)+C.v0);
+        const cls = tg < 2 ? "warn" : "ok";
+        h += stat("Gegenverkehr", tg < 2 ? "Sehr knapp!" : "Ausreichend Platz",
+          "kleinster Abstand A–C auf der Gegenfahrbahn: "+fmt(M.minGap,0)+" m (≈ "+fmt(tg,1)+" s bis zum Zusammentreffen)", cls);
+      } else h += stat("Gegenverkehr", "Kein Konflikt", "C ist bereits vorbei", "ok");
+    }
+    h += `</div>`;
+    if(M.immediate) h += `<div class="note" style="margin-top:10px">Fahrzeug A ist schon zu Beginn innerhalb des Sicherheitsabstands – der Überholvorgang beginnt sofort bei t = 0 s.</div>`;
+  }
+  $("#stats").innerHTML = h;
+
+  // Bewegungsfunktionen
+  const n = (x,d=2) => fmt(x,d).replace(/,?0+$/,"").replace(/,$/,"") ;
+  const term = (P, name) => {
+    let s = `<i>x</i><sub>${name}</sub>(<i>t</i>) = ${n(P.x0,1)} m + ${n(P.v0)} <span>m/s</span> · <i>t</i>`;
+    if(P.a !== 0) s += ` ${P.a<0?"−":"+"} ½ · ${n(Math.abs(P.a))} m/s² · <i>t</i>²`;
+    let v = `<i>v</i><sub>${name}</sub>(<i>t</i>) = ${n(P.v0)} m/s`;
+    if(P.a !== 0) v += ` ${P.a<0?"−":"+"} ${n(Math.abs(P.a))} m/s² · <i>t</i>`;
+    let note = P.a < 0 && P.v0 > 0 ? ` <span class="small muted" style="font-family:system-ui">(gilt bis zum Stillstand nach ${fmt(P.v0/-P.a,1)} s)</span>` : "";
+    return `<div class="eq">${s}${note}</div><div class="eq">${v}</div>`;
+  };
+  let e = `<h3 style="color:var(--car-a)">Fahrzeug A</h3>` + term(A,"A") + `<h3 style="color:var(--car-b)">Fahrzeug B</h3>` + term(B,"B");
+  if(C.on) e += `<h3 style="color:var(--car-c)">Gegenverkehr C</h3><div class="eq"><i>x</i><sub>C</sub>(<i>t</i>) = ${n(C.x0,1)} m − ${n(C.v0)} m/s · <i>t</i></div>`;
+  $("#eqs").innerHTML = e;
+  const dRule = S.rule==="tacho" ? "„halber Tacho“: Zahlenwert des Abstands in m = ½ · Zahlenwert der Geschwindigkeit in km/h" : "2-Sekunden-Regel: <i>d</i> = <i>v</i> · 2 s";
+  $("#defs").innerHTML = `<h3>So ist der Überholvorgang festgelegt</h3>
+    <p><b style="color:var(--start)">Beginn:</b> Der Abstand zwischen der Front von A und dem Heck von B ist auf den Sicherheitsabstand von A geschrumpft:<br>
+    <span class="eq" style="display:inline-block"><i>x</i><sub>B</sub> − <i>L</i><sub>B</sub> − <i>x</i><sub>A</sub> = <i>d</i><sub>A</sub></span></p>
+    <p><b style="color:var(--end)">Ende:</b> Fahrzeug B hat wieder seinen Sicherheitsabstand zum Heck von A:<br>
+    <span class="eq" style="display:inline-block"><i>x</i><sub>A</sub> − <i>L</i><sub>A</sub> − <i>x</i><sub>B</sub> = <i>d</i><sub>B</sub></span></p>
+    <p class="muted">Sicherheitsabstand: ${dRule}. Dabei zählt jeweils die momentane Geschwindigkeit. <i>L</i> ist die Fahrzeuglänge, <i>x</i> der Ort der Fahrzeugfront.</p>`;
+}
+
+function renderLive(){
+  const A=S.A, B=S.B, C=S.C, t=S.t;
+  const row = (name, color, P, isC) => {
+    const x = isC ? posC(t) : pos(P,t), v = isC ? -C.v0 : vel(P,t);
+    const d = isC ? "–" : fmt(dSafe(v),0)+" m";
+    return `<tr><td><span class="swatch" style="background:${color};vertical-align:-1px"></span> ${name}</td><td>${fmt(x,1)} m</td><td>${fmt(vF(v), S.unit==="kmh"?0:1)} ${vU()}</td><td>${d}</td></tr>`;
+  };
+  let h = `<thead><tr><th>Fahrzeug</th><th>Ort <i>x</i></th><th>Geschw. <i>v</i></th><th>Sicherheits&shy;abstand <i>d</i></th></tr></thead><tbody>`;
+  h += row("A", "var(--car-a)", A) + row("B", "var(--car-b)", B);
+  if(C.on) h += row("C", "var(--car-c)", C, true);
+  $("#live").innerHTML = h + "</tbody>";
+
+  const gapAB = (pos(B,t)-B.L) - pos(A,t);  // Front A → Heck B
+  const gapBA = (pos(A,t)-A.L) - pos(B,t);  // Front B → Heck A
+  let g;
+  if(gapAB >= 0) g = `Abstand Front A → Heck B: <b>${fmt(gapAB,1)} m</b> (Sicherheitsabstand von A: ${fmt(dSafe(vel(A,t)),1)} m)`;
+  else if(gapBA >= 0) g = `Abstand Front B → Heck A: <b>${fmt(gapBA,1)} m</b> (Sicherheitsabstand von B: ${fmt(dSafe(vel(B,t)),1)} m)`;
+  else g = `A und B fahren nebeneinander.`;
+  $("#gapline").innerHTML = g;
+
+  // Phase
+  const ph = $("#phase"), pt = $("#phaseText");
+  ph.className = "badge";
+  if(M.tc != null && t >= M.tc - 1e-6){ ph.classList.add("crash"); pt.textContent = "Kollision mit dem Gegenverkehr"; }
+  else if(M.ts == null) pt.textContent = "Kein Überholvorgang";
+  else if(t < M.ts) pt.textContent = "Vor dem Überholvorgang";
+  else if(M.te == null || t < M.te){ ph.classList.add("run"); pt.textContent = "Überholvorgang läuft"; }
+  else { ph.classList.add("done"); pt.textContent = "Überholvorgang beendet"; }
+
+  $("#tlabel").textContent = "t = " + fmt(t,1) + " s";
+  $("#tslider").value = Math.round(t/M.T*1000);
+  $("#play").textContent = S.playing ? "❚❚ Pause" : (t >= M.T - 1e-6 ? "▶ Nochmal" : "▶ Start");
+}
+
+function render(){ drawRoad(); drawCharts(); renderLive(); }
+
+/* ================================================================
+   Animation & Bedienung
+   ================================================================ */
+let lastTs = null;
+function frame(ts){
+  if(S.playing){
+    if(lastTs != null){
+      const dt = Math.min(0.1, (ts - lastTs)/1000);
+      S.t += dt*S.speed;
+      if(S.t >= M.T){ S.t = M.T; S.playing = false; }
+    }
+    lastTs = ts;
+    render();
+  } else lastTs = null;
+  requestAnimationFrame(frame);
+}
+
+function togglePlay(){
+  if(!S.playing && S.t >= M.T - 1e-6) S.t = 0;
+  S.playing = !S.playing; render();
+}
+$("#play").addEventListener("click", togglePlay);
+$("#reset").addEventListener("click", () => { S.playing=false; S.t=0; render(); });
+$("#tslider").addEventListener("input", e => { S.playing=false; S.t = e.target.value/1000*M.T; render(); });
+$("#speed").addEventListener("change", e => { S.speed = parseFloat(e.target.value); });
+document.addEventListener("keydown", e => {
+  if(e.code==="Space" && !/INPUT|SELECT|BUTTON|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); togglePlay(); }
+});
+
+for(const id of ["stChart","vtChart"]){
+  const cv = document.getElementById(id);
+  const seek = e => {
+    const c = charts[id]; if(!c) return;
+    const r = cv.getBoundingClientRect();
+    S.playing = false;
+    S.t = clamp((e.clientX - r.left - c.m.l)/c.pw * c.T, 0, c.T);
+    render();
+  };
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); seek(e); });
+  cv.addEventListener("pointermove", e => { if(e.buttons) seek(e); });
+}
+
+for(const b of document.querySelectorAll("#unitSeg button")) b.addEventListener("click", () => { S.unit=b.dataset.v; onParamChange(); });
+for(const b of document.querySelectorAll("#ruleSeg button")) b.addEventListener("click", () => { S.rule=b.dataset.v; onParamChange(); });
+$("#cOn").addEventListener("change", e => { S.C.on = e.target.checked; S.preset="custom"; $("#preset").value="custom"; onParamChange(); });
+$("#optMarkers").addEventListener("change", e => { S.showMarkers = e.target.checked; renderStatic(); render(); });
+$("#optZones").addEventListener("change", e => { S.showZones = e.target.checked; render(); });
+$("#optLive").addEventListener("change", e => { S.liveDraw = e.target.checked; render(); });
+
+const sel = $("#preset");
+sel.innerHTML = PRESETS.map(p => `<option value="${p.id}">${p.name}</option>`).join("") + `<option value="custom">— eigene Werte —</option>`;
+sel.addEventListener("change", () => { if(sel.value !== "custom") applyPreset(sel.value); });
+
+new ResizeObserver(() => render()).observe(document.body);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => render());
+
+buildFields();
+applyPreset("lkw");
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

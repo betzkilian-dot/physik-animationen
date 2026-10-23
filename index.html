@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physik-Animationen</title>
+<meta name="description" content="Interaktive Physik-Animationen für den Unterricht.">
+<style>
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#16191d; --muted:#5d6670; --line:#dde1e6; --soft:#f6f7f9;
+  --accent:#1f4fd1; --accent-ink:#ffffff; --tag:#e8eefc; --tag-ink:#1f3f9e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121417; --panel:#1b1e23; --ink:#e7eaee; --muted:#9aa3ad; --line:#2c3138; --soft:#22262c;
+         --accent:#7ea2ff; --accent-ink:#0d1220; --tag:#232c42; --tag-ink:#b8c9ff; color-scheme: dark; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+header{padding:40px 0 18px}
+h1{font-size:34px;letter-spacing:-.02em;margin:0 0 6px}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:18px 0 22px}
+.tools input{flex:1;min-width:220px;font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding-bottom:40px}
+.card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .15s, box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.thumb{aspect-ratio:16/9;background:var(--soft);border-bottom:1px solid var(--line);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+.body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.meta{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12.5px;background:var(--tag);color:var(--tag-ink);padding:2px 9px;border-radius:999px;font-weight:600}
+.card h2{font-size:19px;margin:0}
+.card p{margin:0;color:var(--muted);font-size:14.5px}
+.lb{font-size:13px;color:var(--muted)}
+.open{margin-top:auto;font-weight:600;color:var(--accent);font-size:14.5px}
+.empty{color:var(--muted);padding:30px 0}
+footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Physik-Animationen</h1>
+    <p>Interaktive Simulationen für den Physikunterricht. Werte einstellen, beobachten, Diagramme deuten – direkt im Browser, auch auf Tablet und Handy.</p>
+  </header>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Suchen, z. B. „Diagramm“ oder „Überholen“" aria-label="Animationen durchsuchen">
+    <div class="chips" id="chips" role="group" aria-label="Jahrgangsstufe"></div>
+  </div>
+  <main class="grid" id="grid"></main>
+  <footer id="foot"></footer>
+</div>
+<script src="animationen.js"></script>
+<script>
+const list = (window.ANIMATIONEN || []).slice();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let jg = "alle";
+const stufen = [...new Set(list.map(a => a.jahrgangsstufe))].sort((a,b)=>parseInt(a)-parseInt(b));
+const chips = document.getElementById("chips");
+function drawChips(){
+  chips.innerHTML = ["alle", ...stufen].map(s =>
+    `<button class="chip" data-s="${esc(s)}" aria-pressed="${s===jg}">${s==="alle" ? "Alle" : "Jgst. "+esc(s)}</button>`).join("");
+  chips.querySelectorAll("button").forEach(b => b.onclick = () => { jg = b.dataset.s; drawChips(); draw(); });
+}
+function draw(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const hits = list.filter(a => (jg==="alle" || a.jahrgangsstufe===jg) &&
+    (!q || [a.titel,a.beschreibung,a.themenbereich,a.lernbereich,...(a.stichworte||[])].join(" ").toLowerCase().includes(q)));
+  document.getElementById("grid").innerHTML = hits.map(a => `
+    <a class="card" href="${esc(a.pfad)}">
+      <div class="thumb">${a.vorschau ? `<img src="${esc(a.vorschau)}" alt="" loading="lazy">` : ""}</div>
+      <div class="body">
+        <div class="meta"><span class="tag">Jgst. ${esc(a.jahrgangsstufe)}</span><span class="tag">${esc(a.themenbereich)}</span></div>
+        <h2>${esc(a.titel)}</h2>
+        <p>${esc(a.beschreibung)}</p>
+        ${a.lernbereich ? `<div class="lb">${esc(a.lernbereich)}</div>` : ""}
+        <span class="open">Animation öffnen →</span>
+      </div>
+    </a>`).join("") || `<div class="empty">Keine passende Animation gefunden.</div>`;
+}
+document.getElementById("q").addEventListener("input", draw);
+document.getElementById("foot").textContent = list.length + (list.length===1 ? " Animation" : " Animationen");
+drawChips(); draw();
+</script>
+</body>
+</html>
